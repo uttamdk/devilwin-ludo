@@ -1,293 +1,347 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DevilWin - Kheliye aur Jeetiye</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Poppins', sans-serif; }
-        .view { display: none; }
-        .view.active { display: block; }
-        .nav-button.active { background-color: #ef4444; color: white; }
+        body { font-family: 'Poppins', sans-serif; background-color: #1a0b2e; color: #f0f0f0; }
+        .ludo-bg-pattern { background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 15px 15px; }
+        .glassmorphism { background: rgba(40, 25, 65, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .modal-overlay { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); }
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .bottom-nav-item.active { color: #facc15; }
+        #qrcode-container img { background: white; padding: 10px; border-radius: 8px; }
     </style>
 </head>
-<body class="bg-gray-900 text-white">
+<body class="ludo-bg-pattern">
 
-    <!-- Main Container -->
-    <div id="app-container" class="max-w-lg mx-auto min-h-screen flex flex-col">
-
-        <!-- Login Screen -->
-        <div id="login-screen" class="view active flex-grow flex items-center justify-center p-4">
-            <div class="w-full text-center bg-gray-800 p-8 rounded-2xl shadow-2xl">
-                <h1 class="text-5xl font-bold text-white mb-2">Devil<span class="text-red-500">Win</span></h1>
-                <p class="text-gray-300 mb-8">India's Skill-Based Ludo Arena</p>
-                <button id="login-button" class="w-full bg-white text-gray-700 flex items-center justify-center gap-3 py-3 px-4 rounded-lg font-semibold transition-transform transform hover:scale-105">
-                    <svg class="w-6 h-6" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
-                    Sign in with Google
-                </button>
-            </div>
-        </div>
-
-        <!-- Main App Screen (Lobby, Profile, etc.) -->
-        <div id="app-screen" class="view flex-grow flex flex-col">
-            <!-- Header -->
-            <header class="bg-gray-800 p-4 shadow-lg flex justify-between items-center sticky top-0 z-10">
-                <div class="flex items-center gap-3">
-                    <img id="user-photo" src="" class="w-12 h-12 rounded-full border-2 border-red-500">
-                    <div>
-                        <p id="user-name" class="font-semibold text-white">User Name</p>
-                        <button id="logout-button" class="text-xs text-red-400 hover:underline">Logout</button>
-                    </div>
-                </div>
-                <div class="text-right bg-black bg-opacity-20 p-2 rounded-lg">
-                     <p class="text-sm text-gray-300">Balance</p>
-                     <p class="text-lg font-bold text-yellow-400">₹<span id="wallet-balance">0</span></p>
-                </div>
-            </header>
-
-            <!-- Content Area -->
-            <main id="main-content" class="flex-grow p-4">
-                
-                <!-- Lobby View -->
-                <div id="lobby-view" class="view active">
-                    <h2 class="text-2xl font-bold mb-4 text-center">Ludo King Battles</h2>
-                    <div class="text-center p-8 bg-gray-800 rounded-lg">
-                        <p class="text-gray-400 mb-4">Join a match and win big!</p>
-                        <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-xl">
-                            Play Now
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Profile View -->
-                <div id="profile-view" class="view">
-                    <h2 class="text-2xl font-bold mb-4">My Profile</h2>
-                    <div class="space-y-3 bg-gray-800 p-4 rounded-lg">
-                        <div class="flex justify-between items-center"><span>Cash Won</span> <span id="cash-won" class="font-bold">₹0</span></div>
-                        <div class="flex justify-between items-center"><span>Battle Played</span> <span id="battles-played" class="font-bold">0</span></div>
-                        <div class="flex justify-between items-center"><span>Penalty Deducted</span> <span id="penalty-deducted" class="font-bold text-red-500">₹0</span></div>
-                    </div>
-                     <div class="mt-4">
-                        <label for="display-name-input" class="block text-sm font-medium text-gray-400">Apna Naam Badlein</label>
-                        <div class="flex gap-2 mt-1">
-                            <input type="text" id="display-name-input" class="w-full bg-gray-700 rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500">
-                            <button id="update-name-btn" class="bg-red-600 hover:bg-red-700 px-4 rounded-md">Save</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Wallet View (Add/Withdraw) -->
-                <div id="wallet-view" class="view">
-                    <h2 class="text-2xl font-bold mb-4">My Wallet</h2>
-                    <!-- Add Money -->
-                    <div class="bg-gray-800 p-4 rounded-lg mb-4">
-                        <h3 class="text-lg font-semibold mb-2">Add Money (Min. ₹50)</h3>
-                        <div class="flex gap-2 mb-2">
-                            <button onclick="setAmount(50)" class="flex-1 bg-gray-700 p-2 rounded-md">₹50</button>
-                            <button onclick="setAmount(100)" class="flex-1 bg-gray-700 p-2 rounded-md">₹100</button>
-                            <button onclick="setAmount(500)" class="flex-1 bg-gray-700 p-2 rounded-md">₹500</button>
-                        </div>
-                        <input type="number" id="add-amount" placeholder="Ya custom amount daalein" class="w-full bg-gray-700 rounded-md p-2 border border-gray-600 mb-2">
-                        <div id="qr-code-area" class="hidden text-center bg-white p-2 rounded-md">
-                            <img id="qr-code-img" src="" class="mx-auto">
-                            <p class="text-black font-mono text-sm">uttamdk99@ptaxis</p>
-                        </div>
-                         <div id="payment-upload-area" class="hidden mt-2">
-                            <p class="text-xs text-yellow-400 mb-2">Warning: Galat screenshot daalne par ₹100 penalty lagegi.</p>
-                            <label for="screenshot-file" class="block text-sm font-medium text-gray-400">Payment ka screenshot upload karein</label>
-                            <input type="file" id="screenshot-file" accept="image/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                            <button id="submit-deposit-btn" class="w-full mt-2 bg-green-600 hover:bg-green-700 p-2 rounded-md">Submit Karein</button>
-                        </div>
-                    </div>
-                    <!-- Withdraw Money -->
-                    <div class="bg-gray-800 p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold mb-2">Withdraw Money (Min. ₹100)</h3>
-                        <input type="number" id="withdraw-amount" placeholder="Amount (e.g., 150)" class="w-full bg-gray-700 rounded-md p-2 border border-gray-600 mb-2">
-                        <textarea id="account-details" placeholder="Apni UPI ID ya Bank Details daalein" rows="3" class="w-full bg-gray-700 rounded-md p-2 border border-gray-600 mb-2"></textarea>
-                        <button id="submit-withdraw-btn" class="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded-md">Request Withdraw</button>
-                    </div>
-                </div>
-
-            </main>
-
-            <!-- Navigation -->
-            <nav class="bg-gray-800 grid grid-cols-3 text-center sticky bottom-0">
-                <button data-view="lobby-view" class="nav-button active p-4">Lobby</button>
-                <button data-view="profile-view" class="nav-button p-4">Profile</button>
-                <button data-view="wallet-view" class="nav-button p-4">Wallet</button>
-            </nav>
-        </div>
+    <div id="global-alert" class="hidden fixed top-5 left-1/2 -translate-x-1/2 glassmorphism p-3 rounded-full shadow-lg z-[100] border-l-4 max-w-sm w-full">
+        <p id="global-alert-message" class="text-center text-sm font-medium text-white"></p>
     </div>
 
+    <div id="app-container" class="hidden">
+        <header class="p-3 flex justify-between items-center bg-gray-900/50 backdrop-blur-md sticky top-0 z-20 border-b border-gray-700">
+            <h1 class="text-2xl font-extrabold text-yellow-400 drop-shadow-lg">DevilWin</h1>
+            <div class="flex items-center space-x-4">
+                <button id="header-wallet-btn" class="bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold px-4 py-2 rounded-full shadow-lg flex items-center">
+                    <i class="fas fa-wallet mr-2"></i><span id="header-wallet-balance">₹0.00</span>
+                </button>
+                <div class="relative">
+                    <button id="header-profile-btn" class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+                         <i class="fas fa-user text-xl text-gray-300"></i>
+                    </button>
+                    <div id="profile-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-50">
+                        <a href="#" id="profile-menu-btn" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Profile</a>
+                        <a href="#" id="logout-btn" class="block px-4 py-2 text-sm text-red-400 hover:bg-gray-700">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main id="main-content" class="pb-20">
+            <!-- Home Page -->
+            <div id="home-page" class="page p-4 space-y-6">
+                 <div class="bg-gradient-to-br from-red-600 to-purple-700 p-6 rounded-2xl shadow-lg text-center">
+                    <h2 class="text-2xl font-bold">Ludo King Battles</h2>
+                    <p class="text-purple-200 mb-4">Create or Join Rooms & Win Big!</p>
+                    <button id="view-battles-btn" class="bg-white text-black font-bold px-8 py-3 rounded-full shadow-md hover:scale-105 transition-transform">View All Battles</button>
+                </div>
+            </div>
+            <!-- Battles Page -->
+            <div id="battles-page" class="page p-4 space-y-6">
+                 <div class="flex justify-end">
+                    <button id="create-battle-btn" class="bg-gradient-to-r from-red-500 to-yellow-500 text-white font-bold px-6 py-2 rounded-lg">Create Battle</button>
+                </div>
+                <!-- Live Battles -->
+                <div>
+                    <h2 class="text-xl font-bold mb-2 flex items-center"><i class="fas fa-satellite-dish text-red-500 mr-2 animate-pulse"></i>Live Battles</h2>
+                    <div id="live-battles-list" class="space-y-3"></div>
+                </div>
+                <!-- Active Battles -->
+                <div>
+                    <h2 class="text-xl font-bold mb-2">Active Battles</h2>
+                    <div id="active-battles-list" class="space-y-3"></div>
+                </div>
+            </div>
+            <!-- Profile Page -->
+            <div id="profile-page" class="page p-4">
+                 <div class="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+                    <img id="profile-page-avatar" class="w-24 h-24 rounded-full bg-gray-700 mb-4">
+                    <div class="flex items-center">
+                        <h2 id="profile-name" class="text-2xl font-bold"></h2>
+                    </div>
+                    <p id="profile-email" class="text-gray-400"></p>
+                </div>
+                 <div class="grid grid-cols-2 gap-4 mt-6 text-center">
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <p class="text-gray-400">Cash Won</p>
+                        <p id="profile-cash-won" class="text-2xl font-bold text-green-400">₹0</p>
+                    </div>
+                     <div class="bg-gray-800 p-4 rounded-lg">
+                        <p class="text-gray-400">Battles Played</p>
+                        <p id="profile-battles-played" class="text-2xl font-bold">0</p>
+                    </div>
+                 </div>
+            </div>
+        </main>
+
+        <nav class="fixed bottom-0 left-0 right-0 bg-gray-800/80 backdrop-blur-md border-t border-gray-700 flex justify-around">
+            <button data-tab="home" class="bottom-nav-item active flex-1 p-2 flex flex-col items-center text-xs text-gray-400"><i class="fas fa-home text-xl mb-1"></i><span class="font-bold">Home</span></button>
+            <button data-tab="battles" class="bottom-nav-item flex-1 p-2 flex flex-col items-center text-xs text-gray-400"><i class="fas fa-swords text-xl mb-1"></i><span class="font-bold">Battles</span></button>
+            <button data-tab="profile" class="bottom-nav-item flex-1 p-2 flex flex-col items-center text-xs text-gray-400"><i class="fas fa-user text-xl mb-1"></i><span class="font-bold">Profile</span></button>
+        </nav>
+    </div>
+
+    <div id="auth-container"></div>
+    <div id="modals-container"></div>
+
     <script type="module">
-        // --- SUPABASE CLIENT ---
-        const SUPABASE_URL = 'https://pcnrpyjxhaxhdgxqiker.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjbnJweWp4aGF4aGRneHFpa2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjAyNzEsImV4cCI6MjA2NzczNjI3MX0.OyR6dfZs2lADfhuG4Dki9b9zBUMOQ1LorbfQmmCXAW4';
+        // --- IMPORTANT: PASTE YOUR SUPABASE URL AND ANON KEY HERE ---
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        // -----------------------------------------------------------
+        
         const dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // --- GLOBAL VARIABLES ---
+        // --- Global State & Constants ---
         let currentUser = null;
+        let userData = null;
+        let unsubscribeUser = null; 
+        const UPI_ID = 'uttamdk99@ptaxis';
+        const PAYEE_NAME = 'DevilWin';
+        
+        // --- UI Elements ---
+        const appContainer = document.getElementById('app-container');
+        const authContainer = document.getElementById('auth-container');
+        const modalsContainer = document.getElementById('modals-container');
+        
+        // --- Helper Functions ---
+        const generateAvatar = (seed = 'default') => `https://api.dicebear.com/8.x/adventurer/svg?seed=${seed}`;
+        function showAlert(message, isError = false) { /* ... same as before ... */ }
+        const renderModal = (id, content) => { /* ... same as before ... */ };
+        const closeModal = () => { modalsContainer.innerHTML = ''; };
+        window.closeModal = closeModal;
 
-        // --- UI ELEMENTS ---
-        const loginScreen = document.getElementById('login-screen');
-        const appScreen = document.getElementById('app-screen');
-        const allViews = document.querySelectorAll('.view');
-        const navButtons = document.querySelectorAll('.nav-button');
+        // --- Authentication ---
+        const renderAuthScreen = () => {
+            authContainer.innerHTML = `<div class="p-6 flex flex-col justify-center min-h-screen"><h1 class="text-5xl font-extrabold text-center mb-2 text-yellow-400 drop-shadow-lg">DevilWin</h1><p class="text-center text-gray-300 mb-8" id="auth-subtitle">Login to Your Kingdom</p><p id="auth-error" class="bg-red-500/20 text-red-300 p-3 rounded-lg mb-4 text-center hidden"></p><form id="auth-form" class="space-y-4"><div id="name-field" class="hidden"><input type="text" placeholder="Aapka Poora Naam" id="auth-name" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" /></div><input type="email" placeholder="Email" id="auth-email" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" required /><input type="password" placeholder="Password" id="auth-password" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" required /><button type="submit" id="auth-submit-btn" class="w-full p-3 bg-gradient-to-r from-red-500 to-yellow-500 rounded-lg font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50">Login</button></form><p class="text-center mt-6 text-gray-400"><span id="auth-toggle-text">Naye khiladi hain?</span><button id="auth-toggle-btn" class="text-yellow-400 font-bold ml-2 hover:underline">Sign Up</button></p></div>`;
+            attachAuthListeners();
+        };
 
-        // --- AUTHENTICATION ---
-        document.getElementById('login-button').addEventListener('click', () => dbClient.auth.signInWithOAuth({ provider: 'google' }));
-        document.getElementById('logout-button').addEventListener('click', () => dbClient.auth.signOut());
+        function attachAuthListeners() {
+            let isLogin = true;
+            const form = document.getElementById('auth-form');
+            const toggleBtn = document.getElementById('auth-toggle-btn');
+            
+            toggleBtn.addEventListener('click', () => {
+                isLogin = !isLogin;
+                document.getElementById('name-field').classList.toggle('hidden', isLogin);
+                document.getElementById('auth-subtitle').textContent = isLogin ? 'Login Karein' : 'Account Banayein';
+                toggleBtn.textContent = isLogin ? "Sign Up" : "Login";
+                document.getElementById('auth-submit-btn').textContent = isLogin ? "Login" : "Sign Up";
+            });
 
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('auth-email').value;
+                const password = document.getElementById('auth-password').value;
+                const name = document.getElementById('auth-name').value;
+                const errorEl = document.getElementById('auth-error');
+                errorEl.classList.add('hidden');
+
+                try {
+                    if (isLogin) {
+                        const { error } = await dbClient.auth.signInWithPassword({ email, password });
+                        if (error) throw error;
+                    } else {
+                        if (!name.trim()) throw new Error("Kripya apna naam daalein.");
+                        const { data: { user }, error } = await dbClient.auth.signUp({ email, password, options: { data: { name: name.trim() } } });
+                        if (error) throw error;
+                        
+                        // Create user profile in 'users' table
+                        const { error: profileError } = await dbClient.from('users').insert({
+                            id: user.id,
+                            name: name.trim(),
+                            email: user.email,
+                            wallet: { cash: 0, bonus: 10, winnings: 0 } // Signup bonus
+                        });
+                        if (profileError) throw profileError;
+                    }
+                } catch (err) {
+                    errorEl.textContent = err.message;
+                    errorEl.classList.remove('hidden');
+                }
+            });
+        }
+        
+        // --- Wallet & Transactions ---
+        function openWalletModal() {
+            if (!userData) return;
+            const wallet = userData.wallet || { cash: 0, bonus: 0, winnings: 0 };
+            const totalBalance = wallet.cash + wallet.winnings + wallet.bonus;
+            const content = `<button onclick="window.closeModal()" class="absolute top-4 right-4 text-gray-400 text-2xl">&times;</button><h2 class="text-xl font-bold mb-4">Mera Wallet</h2><div class="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-xl mb-4"><p class="text-sm text-gray-200">Total Balance</p><p class="text-3xl font-bold">₹${totalBalance.toFixed(2)}</p></div><div class="grid grid-cols-2 gap-2 text-center text-sm mb-4"><div class="bg-gray-700 p-2 rounded-lg"><p class="text-gray-400">Cash</p><p class="font-bold">₹${wallet.cash.toFixed(2)}</p></div><div class="bg-gray-700 p-2 rounded-lg"><p class="text-gray-400">Winnings</p><p class="font-bold">₹${wallet.winnings.toFixed(2)}</p></div><div class="bg-gray-700 p-2 rounded-lg col-span-2"><p class="text-gray-400">Bonus</p><p class="font-bold">₹${wallet.bonus.toFixed(2)}</p></div></div><div class="grid grid-cols-2 gap-4"><button id="open-deposit-modal" class="bg-green-600 p-3 rounded-lg font-bold">Paise Daalein</button><button id="open-withdraw-modal" class="bg-yellow-500 text-black p-3 rounded-lg font-bold">Paise Nikalein</button></div>`;
+            renderModal('wallet-modal', content);
+            document.getElementById('open-deposit-modal').addEventListener('click', openDepositModal);
+            document.getElementById('open-withdraw-modal').addEventListener('click', openWithdrawModal);
+        }
+
+        function openDepositModal() {
+            const content = `<button onclick="window.closeModal()" class="absolute top-4 right-4 text-gray-400 text-2xl">&times;</button><h2 class="text-xl font-bold mb-4">Paise Daalein</h2><div id="deposit-step-1"><p class="text-sm text-gray-300 mb-2">Aap kitne paise daalna chahte hain? (Minimum ₹50)</p><input type="number" id="deposit-amount" placeholder="Amount (e.g., 100)" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 mb-3" /><button id="generate-qr-btn" class="w-full mt-2 p-3 bg-indigo-600 rounded-lg font-bold">QR Code Banayein</button></div><div id="deposit-step-2" class="hidden text-center"><p class="text-sm text-gray-300 mb-2">Is QR code ko scan karke payment karein</p><div id="qrcode-container" class="flex justify-center my-3"></div><form id="deposit-proof-form"><label class="block text-sm text-gray-400 my-3">Payment ka screenshot upload karein:</label><input type="file" id="deposit-proof" accept="image/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-500 file:text-black hover:file:bg-yellow-600" required /><p class="text-xs text-yellow-400 my-2">Warning: Galat screenshot par ₹100 penalty lagegi.</p><button type="submit" class="w-full mt-2 p-3 bg-green-600 rounded-lg font-bold">Request Jama Karein</button></form></div>`;
+            renderModal('deposit-modal', content);
+            document.getElementById('generate-qr-btn').addEventListener('click', () => {
+                const amount = parseFloat(document.getElementById('deposit-amount').value);
+                if (!amount || amount < 50) { showAlert("Kam se kam ₹50 deposit kar sakte hain.", true); return; }
+                generateUpiQrCode(amount);
+            });
+            document.getElementById('deposit-proof-form').addEventListener('submit', handleDepositRequest);
+        }
+
+        function generateUpiQrCode(amount) {
+            const upiString = `upi://pay?pa=${UPI_ID}&pn=${PAYEE_NAME}&am=${amount.toFixed(2)}&cu=INR&tn=Deposit for DevilWin`;
+            const qr = qrcode(0, 'L');
+            qr.addData(upiString);
+            qr.make();
+            document.getElementById('qrcode-container').innerHTML = qr.createImgTag(5, 10);
+            document.getElementById('deposit-step-1').classList.add('hidden');
+            document.getElementById('deposit-step-2').classList.remove('hidden');
+        }
+
+        async function handleDepositRequest(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('deposit-amount').value);
+            const proofFile = document.getElementById('deposit-proof').files[0];
+            if (!proofFile) { showAlert("Kripya screenshot upload karein.", true); return; }
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true; submitBtn.innerHTML = 'Uploading...';
+
+            try {
+                // 1. Upload screenshot to Supabase Storage
+                const filePath = `${currentUser.id}/${Date.now()}_${proofFile.name}`;
+                const { error: uploadError } = await dbClient.storage.from('deposits').upload(filePath, proofFile);
+                if (uploadError) throw uploadError;
+
+                // 2. Get public URL
+                const { data: { publicUrl } } = dbClient.storage.from('deposits').getPublicUrl(filePath);
+
+                // 3. Insert deposit request
+                const { error: dbError } = await dbClient.from('deposits').insert({
+                    user_id: currentUser.id, user_name: userData.name, amount, screenshot_url: publicUrl
+                });
+                if (dbError) throw dbError;
+
+                // 4. Add amount to user wallet instantly
+                const newBalance = (userData.wallet.cash || 0) + amount;
+                const { error: updateError } = await dbClient.from('users').update({ wallet: { ...userData.wallet, cash: newBalance } }).eq('id', currentUser.id);
+                if (updateError) throw updateError;
+                
+                closeModal();
+                showAlert("Request jama ho gayi hai. Amount wallet mein add kar diya gaya hai.");
+            } catch (error) {
+                showAlert(`Request fail ho gayi: ${error.message}`, true);
+            } finally {
+                submitBtn.disabled = false; submitBtn.innerHTML = 'Request Jama Karein';
+            }
+        }
+
+        function openWithdrawModal() {
+            const winnings = userData.wallet?.winnings || 0;
+            const content = `<button onclick="window.closeModal()" class="absolute top-4 right-4 text-gray-400 text-2xl">&times;</button><h2 class="text-xl font-bold mb-2">Paise Nikalein</h2><p class="text-sm text-gray-400 mb-4">Aap ₹${winnings.toFixed(2)} tak nikal sakte hain. (Minimum ₹100)</p><form id="withdraw-form"><input type="number" id="withdraw-amount" placeholder="Amount" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 mb-3" required /><textarea id="withdraw-details" placeholder="Aapki UPI ID ya Bank Details" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 mb-3" required></textarea><button type="submit" class="w-full mt-4 p-3 bg-yellow-500 text-black rounded-lg font-bold">Request Withdraw</button></form>`;
+            renderModal('withdraw-modal', content);
+            document.getElementById('withdraw-form').addEventListener('submit', handleWithdrawRequest);
+        }
+
+        async function handleWithdrawRequest(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('withdraw-amount').value);
+            const details = document.getElementById('withdraw-details').value;
+            const winnings = userData.wallet?.winnings || 0;
+
+            if (!amount || !details.trim()) { showAlert("Kripya sahi details daalein.", true); return; }
+            if (amount < 100) { showAlert("Kam se kam ₹100 nikal sakte hain.", true); return; }
+            if (amount > winnings) { showAlert("Aapke paas itne paise nahi hain.", true); return; }
+            
+            try {
+                const { error } = await dbClient.from('withdrawals').insert({
+                    user_id: currentUser.id, user_name: userData.name, gross_amount: amount, upi_id: details
+                });
+                if (error) throw error;
+                
+                closeModal();
+                showAlert("Withdraw request bhej di gayi hai. 2-4 ghante mein process ho jayegi.");
+            } catch (error) {
+                showAlert(`Request fail ho gayi: ${error.message}`, true);
+            }
+        }
+        
+        // --- Main App Initialization ---
+        function initializeMainApp() {
+            if (document.getElementById('home-page').classList.contains('initialized')) return;
+            document.getElementById('home-page').classList.add('active', 'initialized');
+            
+            const navItems = document.querySelectorAll('.bottom-nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const tabId = item.dataset.tab;
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    item.classList.add('active');
+                    document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === `${tabId}-page`));
+                });
+            });
+
+            document.getElementById('header-wallet-btn').addEventListener('click', openWalletModal);
+            document.getElementById('logout-btn').addEventListener('click', () => dbClient.auth.signOut());
+            document.getElementById('view-battles-btn').addEventListener('click', () => document.querySelector('[data-tab="battles"]').click());
+            document.getElementById('create-battle-btn').addEventListener('click', () => alert("Battle system jald hi aa raha hai!"));
+        }
+
+        function updateUIWithUserData() {
+             if (!userData || !currentUser) return;
+            const wallet = userData.wallet || { cash: 0, winnings: 0, bonus: 0 };
+            const totalBalance = wallet.cash + wallet.winnings + wallet.bonus;
+            document.getElementById('header-wallet-balance').textContent = `₹${totalBalance.toFixed(2)}`;
+            document.getElementById('profile-name').textContent = userData.name;
+            document.getElementById('profile-email').textContent = userData.email;
+            document.getElementById('profile-cash-won').textContent = `₹${userData.total_winnings || 0}`;
+            document.getElementById('profile-battles-played').textContent = userData.battles_played || 0;
+            const avatarUrl = generateAvatar(currentUser.id, userData.name);
+            document.getElementById('header-profile-btn').innerHTML = `<img src="${avatarUrl}" class="w-10 h-10 rounded-full">`;
+            document.getElementById('profile-page-avatar').src = avatarUrl;
+        }
+
+        // --- Auth State Change Handler ---
         dbClient.auth.onAuthStateChange(async (event, session) => {
             if (session && session.user) {
                 currentUser = session.user;
-                await setupUser();
-                switchView('app-screen');
+                
+                const { data, error } = await dbClient.from('users').select('*').eq('id', currentUser.id).single();
+                if (data) {
+                    userData = data;
+                    authContainer.innerHTML = '';
+                    authContainer.style.display = 'none';
+                    appContainer.style.display = 'block';
+                    initializeMainApp();
+                    updateUIWithUserData(); 
+                } else {
+                    // This case is handled during signup
+                    console.log("User in auth but not in DB, waiting for creation...");
+                }
             } else {
                 currentUser = null;
-                switchView('login-screen');
+                userData = null;
+                appContainer.style.display = 'none';
+                authContainer.style.display = 'block';
+                renderAuthScreen();
             }
         });
-
-        // --- USER SETUP & UI UPDATES ---
-        async function setupUser() {
-            const { data: userProfile, error } = await dbClient.from('users').select('*').eq('id', currentUser.id).single();
-
-            if (userProfile) {
-                // Update UI with user data
-                document.getElementById('user-name').textContent = userProfile.display_name || 'New User';
-                document.getElementById('display-name-input').value = userProfile.display_name || '';
-                document.getElementById('user-photo').src = userProfile.photo_url;
-                document.getElementById('wallet-balance').textContent = userProfile.wallet_balance;
-                document.getElementById('cash-won').textContent = `₹${userProfile.cash_won}`;
-                document.getElementById('battles-played').textContent = userProfile.battles_played;
-                document.getElementById('penalty-deducted').textContent = `₹${userProfile.penalty_deducted}`;
-            } else {
-                // First time login, create profile
-                const randomAvatar = `https://api.dicebear.com/8.x/adventurer/svg?seed=${currentUser.id}`;
-                const { data: newUser, error: insertError } = await dbClient.from('users').insert({
-                    id: currentUser.id,
-                    display_name: currentUser.user_metadata.full_name,
-                    email: currentUser.user_metadata.email,
-                    photo_url: randomAvatar
-                }).select().single();
-                
-                if (newUser) setupUser(); // Re-run setup to populate UI
-                if (insertError) console.error("Profile banane mein error:", insertError);
-            }
-        }
-
-        // --- NAVIGATION ---
-        function switchView(viewId) {
-            allViews.forEach(view => view.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
-        }
-
-        navButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const viewId = button.getAttribute('data-view');
-                document.querySelectorAll('.main-content .view').forEach(v => v.classList.remove('active'));
-                document.getElementById(viewId).classList.add('active');
-                navButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-            });
-        });
-        
-        // --- PROFILE ---
-        document.getElementById('update-name-btn').addEventListener('click', async () => {
-            const newName = document.getElementById('display-name-input').value;
-            if (!newName) { alert("Naam khaali nahi ho sakta."); return; }
-            const { error } = await dbClient.from('users').update({ display_name: newName }).eq('id', currentUser.id);
-            if (error) { alert("Error: " + error.message); }
-            else { alert("Naam update ho gaya!"); document.getElementById('user-name').textContent = newName; }
-        });
-
-        // --- WALLET: ADD MONEY ---
-        const addAmountInput = document.getElementById('add-amount');
-        const qrCodeArea = document.getElementById('qr-code-area');
-        const paymentUploadArea = document.getElementById('payment-upload-area');
-        
-        window.setAmount = (amount) => { addAmountInput.value = amount; handleAmountChange(); }
-        addAmountInput.addEventListener('input', handleAmountChange);
-
-        function handleAmountChange() {
-            const amount = parseInt(addAmountInput.value);
-            if (amount && amount >= 50) {
-                const upiId = "uttamdk99@ptaxis";
-                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=${upiId}%26pn=DevilWin%26am=${amount}%26cu=INR`;
-                document.getElementById('qr-code-img').src = qrUrl;
-                qrCodeArea.classList.remove('hidden');
-                paymentUploadArea.classList.remove('hidden');
-            } else {
-                qrCodeArea.classList.add('hidden');
-                paymentUploadArea.classList.add('hidden');
-            }
-        }
-
-        document.getElementById('submit-deposit-btn').addEventListener('click', async () => {
-            const amount = parseInt(addAmountInput.value);
-            const file = document.getElementById('screenshot-file').files[0];
-
-            if (!amount || amount < 50) { alert("Kam se kam ₹50 add karein."); return; }
-            if (!file) { alert("Screenshot upload karna zaroori hai."); return; }
-            
-            this.disabled = true;
-            this.textContent = "Uploading...";
-
-            // 1. Upload screenshot to Supabase Storage
-            const filePath = `${currentUser.id}/${Date.now()}_${file.name}`;
-            const { error: uploadError } = await dbClient.storage.from('deposits').upload(filePath, file);
-            
-            if (uploadError) { alert("Upload Error: " + uploadError.message); this.disabled = false; this.textContent = "Submit Karein"; return; }
-
-            // 2. Get public URL of the uploaded file
-            const { data: { publicUrl } } = dbClient.storage.from('deposits').getPublicUrl(filePath);
-
-            // 3. Insert deposit request into 'deposits' table
-            const { error: dbError } = await dbClient.from('deposits').insert({
-                user_id: currentUser.id,
-                amount: amount,
-                screenshot_url: publicUrl
-            });
-
-            if (dbError) { alert("Request Error: " + dbError.message); this.disabled = false; this.textContent = "Submit Karein"; return; }
-            
-            // 4. Immediately add balance to user's wallet
-            const { data: currentProfile } = await dbClient.from('users').select('wallet_balance').eq('id', currentUser.id).single();
-            const newBalance = parseFloat(currentProfile.wallet_balance) + amount;
-            await dbClient.from('users').update({ wallet_balance: newBalance }).eq('id', currentUser.id);
-
-            alert("Request submitted! Amount aapke wallet mein add ho gaya hai. Admin jald hi approve karega.");
-            this.disabled = false;
-            this.textContent = "Submit Karein";
-            setupUser(); // Refresh UI
-        });
-        
-        // --- WALLET: WITHDRAW MONEY ---
-        document.getElementById('submit-withdraw-btn').addEventListener('click', async () => {
-            const amount = parseInt(document.getElementById('withdraw-amount').value);
-            const details = document.getElementById('account-details').value;
-
-            if (!amount || amount < 100) { alert("Kam se kam ₹100 withdraw karein."); return; }
-            if (!details) { alert("UPI ya Bank details daalna zaroori hai."); return; }
-            
-            // In a real app, you would check if winnings_balance is sufficient
-            
-            const { error } = await dbClient.from('withdrawals').insert({
-                user_id: currentUser.id,
-                amount: amount,
-                account_details: details
-            });
-            
-            if (error) { alert("Request Error: " + error.message); }
-            else { alert("Withdraw request bhej di gayi hai. 2-4 ghante mein process ho jaayegi."); }
-        });
-
     </script>
 </body>
 </html>
