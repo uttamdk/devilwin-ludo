@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEVILWIN - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar-link.active { background-color: #4f46e5; color: white; }
+        .stat-card { background-color: #1f2937; border-left: 5px solid #fbbf24; }
+        .admin-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transform: translateX(200%);
+            transition: transform 0.5s ease-in-out;
+        }
+        .admin-notification.show {
+            transform: translateX(0);
+        }
+        .admin-notification.success { background-color: #16a34a; }
+        .admin-notification.error { background-color: #dc2626; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div id="admin-notification-area"></div>
+
+    <div id="admin-login-view" class="flex items-center justify-center h-screen bg-gray-800">
+        <div class="bg-gray-900 p-8 rounded-xl shadow-2xl w-full max-w-sm">
+            <h2 class="text-3xl font-bold text-center text-yellow-400 mb-2">DEVILWIN</h2>
+            <p class="text-center text-indigo-300 mb-6">Admin Panel Login</p>
+            <p id="admin-login-error" class="bg-red-500/20 text-red-300 p-3 rounded-lg mb-4 text-center hidden"></p>
+            <form id="admin-login-form">
+                <div class="mb-4">
+                    <input type="email" id="admin-email" placeholder="Admin Email" required class="w-full bg-gray-800 text-white border-2 border-gray-700 rounded-lg p-3 focus:outline-none focus:border-yellow-400 transition duration-300">
+                </div>
+                <div class="mb-6">
+                    <input type="password" id="admin-pass" placeholder="Admin Password" required class="w-full bg-gray-800 text-white border-2 border-gray-700 rounded-lg p-3 focus:outline-none focus:border-yellow-400 transition duration-300">
+                </div>
+                <button type="submit" class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-4 rounded-lg text-lg transition duration-300 shadow-lg">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="admin-panel-view" class="hidden flex h-screen">
+        <aside class="w-64 bg-gray-800 text-white flex flex-col">
+            <div class="p-6 text-center border-b border-gray-700">
+                <h1 class="text-2xl font-bold text-yellow-400">DEVILWIN</h1>
+                <p class="text-sm text-indigo-300">Admin</p>
+            </div>
+            <nav class="flex-1 px-4 py-2 space-y-2">
+                <a href="#" class="sidebar-link active flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="dashboard"><i class="fas fa-tachometer-alt w-6"></i><span>Dashboard</span></a>
+                <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="users"><i class="fas fa-users w-6"></i><span>Users</span></a>
+                <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="deposits"><i class="fas fa-arrow-down w-6"></i><span>Deposit Requests</span></a>
+                <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="withdrawals"><i class="fas fa-arrow-up w-6"></i><span>Withdrawal Requests</span></a>
+                <!-- <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="disputes"><i class="fas fa-gavel w-6"></i><span>Game Disputes</span></a> -->
+            </nav>
+            <div class="p-4 border-t border-gray-700">
+                <button id="admin-logout-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Logout</button>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-6 md:p-8 overflow-y-auto">
+            <section id="dashboard-section" class="admin-section"></section>
+            <section id="users-section" class="admin-section hidden"></section>
+            <section id="deposits-section" class="admin-section hidden"></section>
+            <section id="withdrawals-section" class="admin-section hidden"></section>
+            <!-- <section id="disputes-section" class="admin-section hidden"></section> -->
+        </main>
+    </div>
+    
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        const supabaseUrl = 'https://pcnrpyjxhaxhdgxqiker.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjbnJweWp4aGF4aGRneHFpa2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjAyNzEsImV4cCI6MjA2NzczNjI3MX0.OyR6dfZs2lADfhuG4Dki9b9zBUMOQ1LorbfQmmCXAW4';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        const adminLoginView = document.getElementById('admin-login-view');
+        const adminPanelView = document.getElementById('admin-panel-view');
+        const adminLoginForm = document.getElementById('admin-login-form');
+        const adminLogoutBtn = document.getElementById('admin-logout-btn');
+        const adminLoginError = document.getElementById('admin-login-error');
+
+        // --- Admin Notification System ---
+        function showAdminNotification(message, isError = false) {
+            const notificationArea = document.getElementById('admin-notification-area');
+            const notification = document.createElement('div');
+            notification.className = `admin-notification ${isError ? 'error' : 'success'}`;
+            notification.textContent = message;
+            notificationArea.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notification.remove();
+                }, 500);
+            }, 5000);
+        }
+
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session?.user) {
+                // Check if the user is an admin
+                const { data: isAdmin, error } = await supabase.rpc('is_admin');
+                
+                if (error || !isAdmin) {
+                    await supabase.auth.signOut();
+                    showLoginError("Aapke paas admin access nahi hai.");
+                    adminPanelView.classList.add('hidden');
+                    adminPanelView.classList.remove('flex');
+                    adminLoginView.classList.remove('hidden');
+                } else {
+                    adminLoginView.classList.add('hidden');
+                    adminPanelView.classList.remove('hidden');
+                    adminPanelView.classList.add('flex');
+                    initAdminPanel();
+                }
+            } else {
+                adminPanelView.classList.add('hidden');
+                adminPanelView.classList.remove('flex');
+                adminLoginView.classList.remove('hidden');
+            }
+        });
+        
+        function showLoginError(message) {
+            adminLoginError.textContent = message;
+            adminLoginError.classList.remove('hidden');
+        }
+
+        adminLoginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            adminLoginError.classList.add('hidden');
+            const email = document.getElementById('admin-email').value;
+            const password = document.getElementById('admin-pass').value;
+            
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                showLoginError("Galat email ya password.");
+                console.error(error);
+            }
+            // onAuthStateChange will handle successful login
+        });
+
+        adminLogoutBtn.addEventListener('click', async () => {
+            await supabase.auth.signOut();
+        });
+
+        function initAdminPanel() {
+            const sidebarLinks = document.querySelectorAll('.sidebar-link');
+            const sections = document.querySelectorAll('.admin-section');
+            const switchView = (view) => {
+                sidebarLinks.forEach(l => l.classList.toggle('active', l.dataset.section === view));
+                sections.forEach(s => s.classList.toggle('hidden', s.id !== `${view}-section`));
+                loadDataForView(view);
+            };
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', (e) => { e.preventDefault(); switchView(link.dataset.section); });
+            });
+            switchView('dashboard');
+        }
+
+        function loadDataForView(view) {
+            const container = document.getElementById(`${view}-section`);
+            container.innerHTML = `<h2 class="text-3xl font-bold mb-6 text-gray-100">${view.charAt(0).toUpperCase() + view.slice(1)}</h2><div id="${view}-content"><p class="text-gray-400">Loading...</p></div>`;
+            const contentContainer = document.getElementById(`${view}-content`);
+            switch (view) {
+                case 'dashboard': loadDashboard(contentContainer); break;
+                case 'users': loadUsers(contentContainer); break;
+                case 'deposits': loadRequests(contentContainer, 'Deposit'); break;
+                case 'withdrawals': loadRequests(contentContainer, 'Withdrawal'); break;
+            }
+        }
+
+        async function loadDashboard(container) {
+             try {
+                const { count: userCount, error: userError } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
+                const { data: totalWinningsData, error: winningsError } = await supabase.from('profiles').select('total_winnings');
+                const { count: pendingDeposits, error: depositError } = await supabase.from('transactions').select('*', { count: 'exact', head: true }).eq('status', 'pending').eq('type', 'Deposit');
+                const { count: pendingWithdrawals, error: withdrawalError } = await supabase.from('transactions').select('*', { count: 'exact', head: true }).eq('status', 'pending').eq('type', 'Withdrawal');
+
+                if (userError || winningsError || depositError || withdrawalError) throw new Error(userError?.message || winningsError?.message || depositError?.message || withdrawalError?.message);
+
+                const totalWinnings = totalWinningsData.reduce((acc, user) => acc + (user.total_winnings || 0), 0);
+
+                container.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="stat-card p-6 rounded-lg shadow-lg">
+                            <p class="text-sm text-gray-400">Total Users</p>
+                            <p class="text-3xl font-bold">${userCount}</p>
+                        </div>
+                        <div class="stat-card p-6 rounded-lg shadow-lg">
+                            <p class="text-sm text-gray-400">Total Winnings Distributed</p>
+                            <p class="text-3xl font-bold">₹${totalWinnings.toFixed(2)}</p>
+                        </div>
+                        <div class="stat-card p-6 rounded-lg shadow-lg bg-green-600/20 border-green-500">
+                            <p class="text-sm text-gray-300">Pending Deposits</p>
+                            <p class="text-3xl font-bold">${pendingDeposits}</p>
+                        </div>
+                        <div class="stat-card p-6 rounded-lg shadow-lg bg-red-600/20 border-red-500">
+                            <p class="text-sm text-gray-300">Pending Withdrawals</p>
+                            <p class="text-3xl font-bold">${pendingWithdrawals}</p>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error("Error loading dashboard:", error);
+                container.innerHTML = `<p class="text-red-400">Dashboard data load nahi ho saka. Console check karein.</p>`;
+            }
+        }
+        
+        async function loadUsers(container) {
+            const { data: users, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+
+            if (error) {
+                console.error("Error loading users:", error);
+                container.innerHTML += '<p class="text-red-400">Users load nahi ho sake. Console check karein.</p>';
+                return;
+            }
+
+            let content = `<h2 class="text-3xl font-bold mb-6 text-gray-100">User Management</h2>`;
+            if (!users || users.length === 0) {
+                content += '<p class="text-gray-400">Koi user nahi mila.</p>';
+                container.innerHTML = content;
+                return;
+            }
+            let tableHTML = `<div class="bg-gray-800 rounded-xl shadow-lg overflow-x-auto"><table class="w-full text-left">
+                <thead class="bg-gray-700"><tr>
+                    <th class="p-4">Name</th><th class="p-4">Email / Phone</th><th class="p-4">Wallet Balance</th><th class="p-4">Joined On</th>
+                </tr></thead><tbody>`;
+            
+            users.forEach(user => {
+                const totalBalance = (user.cash_balance || 0) + (user.winnings_balance || 0) + (user.bonus_balance || 0);
+                const date = new Date(user.created_at).toLocaleDateString();
+                const emailDisplay = user.email.includes('@devilwin.com') ? user.email.split('@')[0] : user.email;
+
+                tableHTML += `<tr class="border-b border-gray-700 hover:bg-gray-700/50">
+                    <td class="p-4 text-sm">${user.name}</td>
+                    <td class="p-4 text-sm">${emailDisplay}</td>
+                    <td class="p-4 font-bold text-yellow-400">₹${totalBalance.toFixed(2)}</td>
+                    <td class="p-4 text-sm">${date}</td>
+                </tr>`;
+            });
+            tableHTML += `</tbody></table></div>`;
+            container.innerHTML = content + tableHTML;
+        }
+
+        async function loadRequests(container, type) {
+            const { data: requests, error } = await supabase
+                .from('transactions')
+                .select(`*, profiles (name, email)`)
+                .eq('status', 'pending')
+                .eq('type', type)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error(`Error loading ${type} requests:`, error);
+                container.innerHTML += `<p class="text-red-400">${type} requests load nahi ho sake. Console check karein.</p>`;
+                return;
+            }
+
+            let content = `<h2 class="text-3xl font-bold mb-6 text-gray-100">${type} Requests</h2>`;
+            
+            if (!requests || requests.length === 0) {
+                content += '<p class="text-gray-400">Koi pending request nahi hai.</p>';
+                container.innerHTML = content;
+                return;
+            }
+            
+            let tableHeader = `<th class="p-4">User</th><th class="p-4">Amount</th><th class="p-4">Details</th><th class="p-4">Date</th><th class="p-4">Actions</th>`;
+
+            let tableHTML = `<div class="bg-gray-800 rounded-xl shadow-lg overflow-x-auto"><table class="w-full text-left">
+                <thead class="bg-gray-700"><tr>${tableHeader}</tr></thead><tbody>`;
+            
+            requests.forEach(req => {
+                const date = new Date(req.created_at).toLocaleString();
+                const userName = req.profiles?.name || req.profiles?.email || 'N/A';
+                
+                let detailsContent = '';
+                if (type === 'Deposit') {
+                    // In a real app, proof_url would be a link to Supabase Storage
+                    detailsContent = req.proof_url ? `<a href="${req.proof_url}" target="_blank" class="text-blue-400 hover:underline">View Proof</a>` : 'No Proof';
+                } else { // Withdrawal
+                    detailsContent = `UPI: ${req.upi_id}`;
+                }
+
+                tableHTML += `<tr class="border-b border-gray-700 hover:bg-gray-700/50">
+                    <td class="p-4 text-sm">${userName}</td>
+                    <td class="p-4 font-bold text-yellow-400">₹${req.amount.toFixed(2)}</td>
+                    <td class="p-4 text-sm">${detailsContent}</td>
+                    <td class="p-4 text-sm">${date}</td>
+                    <td class="p-4 flex space-x-2">
+                        <button class="action-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded" data-action="approve" data-id="${req.id}" data-type="${type}">Approve</button>
+                        <button class="action-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded" data-action="reject" data-id="${req.id}" data-type="${type}">Reject</button>
+                    </td>
+                </tr>`;
+            });
+            tableHTML += `</tbody></table></div>`;
+            container.innerHTML = content + tableHTML;
+        }
+        
+        async function handleAction(e) {
+            const target = e.target;
+            if (!target.classList.contains('action-btn')) return;
+            
+            const { action, id, type } = target.dataset;
+            if (!action || !id || !type) {
+                showAdminNotification("Action failed: Missing details.", true);
+                return;
+            }
+            
+            const actionBtn = target;
+            const originalText = actionBtn.innerHTML;
+            actionBtn.disabled = true;
+            actionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            try {
+                let rpc_call = '';
+                if (action === 'approve') {
+                    rpc_call = type === 'Deposit' ? 'approve_deposit' : 'approve_withdrawal';
+                } else { // reject
+                    rpc_call = 'reject_transaction';
+                }
+
+                const { error } = await supabase.rpc(rpc_call, { p_transaction_id: id });
+
+                if (error) {
+                    throw error;
+                }
+                
+                showAdminNotification(`Action "${action}" completed successfully!`);
+                // Reload the current view to show changes
+                const currentSection = document.querySelector('.sidebar-link.active').dataset.section;
+                loadDataForView(currentSection);
+
+            } catch (err) {
+                console.error("Action failed:", err);
+                showAdminNotification(`Error: ${err.message}`, true);
+            } finally {
+                 actionBtn.disabled = false;
+                 actionBtn.innerHTML = originalText;
+            }
+        }
+
+        document.addEventListener('click', handleAction);
+
+    </script>
+</body>
+</html>

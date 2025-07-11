@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #1a0b2e; color: #f0f0f0; }
         .ludo-bg-pattern { background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 15px 15px; }
@@ -19,6 +18,19 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .bottom-nav-item.active { color: #facc15; }
         #qrcode-container img { background: white; padding: 10px; border-radius: 8px; }
+        .winner-animation {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000;
+            background: rgba(0,0,0,0.7); display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+        .winner-animation i { font-size: 100px; color: #facc15; animation: crown-pop 0.5s ease-out; }
+        .winner-animation p { font-size: 2rem; font-weight: bold; color: white; animation: text-fade-in 1s ease-out; }
+        @keyframes crown-pop { 0% { transform: scale(0); } 80% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        @keyframes text-fade-in { 0% { opacity: 0; } 100% { opacity: 1; } }
+        .history-item .status-pending { color: #facc15; }
+        .history-item .status-approved, .history-item .status-completed { color: #4ade80; }
+        .history-item .status-rejected { color: #f87171; }
+        .faq-answer { display: none; }
     </style>
 </head>
 <body class="ludo-bg-pattern">
@@ -40,6 +52,8 @@
                     </button>
                     <div id="profile-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-50">
                         <a href="#" id="profile-menu-btn" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Profile</a>
+                        <a href="#" id="help-support-btn" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Help & Support</a>
+                        <a href="#" id="share-refer-btn" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Share & Refer</a>
                         <a href="#" id="logout-btn" class="block px-4 py-2 text-sm text-red-400 hover:bg-gray-700">Logout</a>
                     </div>
                 </div>
@@ -54,6 +68,14 @@
                     <p class="text-purple-200 mb-4">Create or Join Rooms & Win Big!</p>
                     <button id="view-battles-btn" class="bg-white text-black font-bold px-8 py-3 rounded-full shadow-md hover:scale-105 transition-transform">View All Battles</button>
                 </div>
+                <!-- Leaderboard Section -->
+                <div class="bg-gray-800/50 p-4 rounded-2xl">
+                    <h2 class="text-xl font-bold text-center text-yellow-400 mb-4">Aaj ke Champions</h2>
+                    <div id="leaderboard-bots" class="flex justify-around mb-4"></div>
+                    <div id="leaderboard-real" class="space-y-2">
+                        <p class="text-center text-gray-400">Loading live rankings...</p>
+                    </div>
+                </div>
             </div>
             <!-- Battles Page -->
             <div id="battles-page" class="page p-4 space-y-6">
@@ -63,60 +85,67 @@
                 <!-- Live Battles -->
                 <div>
                     <h2 class="text-xl font-bold mb-2 flex items-center"><i class="fas fa-satellite-dish text-red-500 mr-2 animate-pulse"></i>Live Battles</h2>
-                    <div id="live-battles-list" class="space-y-3"></div>
+                    <div id="live-battles-list" class="space-y-3">
+                        <p class="text-center text-gray-500">No live battles right now.</p>
+                    </div>
                 </div>
                 <!-- Active Battles -->
                 <div>
                     <h2 class="text-xl font-bold mb-2">Active Battles</h2>
-                    <div id="active-battles-list" class="space-y-3"></div>
+                    <div id="active-battles-list" class="space-y-3">
+                        <!-- Content will be rendered by JS -->
+                    </div>
                 </div>
             </div>
             <!-- Profile Page -->
             <div id="profile-page" class="page p-4">
                  <div class="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
-                    <img id="profile-page-avatar" class="w-24 h-24 rounded-full bg-gray-700 mb-4">
+                    <div id="profile-page-avatar" class="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center mb-4"><i class="fas fa-user text-5xl text-gray-500"></i></div>
                     <div class="flex items-center">
                         <h2 id="profile-name" class="text-2xl font-bold"></h2>
+                        <button id="edit-name-btn" class="ml-3 text-gray-400 hover:text-white"><i class="fas fa-pencil-alt"></i></button>
                     </div>
                     <p id="profile-email" class="text-gray-400"></p>
+                    <p id="profile-uid" class="text-xs text-gray-500 mt-2 bg-gray-900 px-2 py-1 rounded-full"></p>
                 </div>
-                 <div class="grid grid-cols-2 gap-4 mt-6 text-center">
-                    <div class="bg-gray-800 p-4 rounded-lg">
-                        <p class="text-gray-400">Cash Won</p>
-                        <p id="profile-cash-won" class="text-2xl font-bold text-green-400">₹0</p>
+
+                 <div class="bg-gray-800 p-6 rounded-2xl space-y-4 mt-6">
+                    <h3 class="font-bold text-lg">Refer & Earn</h3>
+                    <p class="text-gray-400">Your Referral Code</p>
+                    <div class="my-2 p-3 bg-gray-900 border-2 border-dashed border-yellow-400 rounded-lg flex justify-between items-center">
+                        <p id="referral-code-display" class="text-2xl font-bold tracking-widest text-yellow-400"></p>
+                        <button id="copy-referral-btn"><i class="fas fa-copy"></i></button>
                     </div>
-                     <div class="bg-gray-800 p-4 rounded-lg">
-                        <p class="text-gray-400">Battles Played</p>
-                        <p id="profile-battles-played" class="text-2xl font-bold">0</p>
-                    </div>
-                 </div>
+                </div>
             </div>
         </main>
 
         <nav class="fixed bottom-0 left-0 right-0 bg-gray-800/80 backdrop-blur-md border-t border-gray-700 flex justify-around">
             <button data-tab="home" class="bottom-nav-item active flex-1 p-2 flex flex-col items-center text-xs text-gray-400"><i class="fas fa-home text-xl mb-1"></i><span class="font-bold">Home</span></button>
             <button data-tab="battles" class="bottom-nav-item flex-1 p-2 flex flex-col items-center text-xs text-gray-400"><i class="fas fa-swords text-xl mb-1"></i><span class="font-bold">Battles</span></button>
-            <button data-tab="profile" class="bottom-nav-item flex-1 p-2 flex flex-col items-center text-xs text-gray-400"><i class="fas fa-user text-xl mb-1"></i><span class="font-bold">Profile</span></button>
+            <button data-tab="profile-nav" class="bottom-nav-item flex-1 p-2 flex flex-col items-center text-xs text-gray-400"><i class="fas fa-user text-xl mb-1"></i><span class="font-bold">Profile</span></button>
         </nav>
     </div>
 
-    <div id="auth-container"></div>
+    <div id="auth-container">
+        <!-- This will be replaced by the loading indicator or the login form -->
+    </div>
     <div id="modals-container"></div>
+    <div id="winner-animation-container"></div>
 
     <script type="module">
-        // --- IMPORTANT: PASTE YOUR SUPABASE URL AND ANON KEY HERE ---
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
-        // -----------------------------------------------------------
-        
-        const dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // --- Supabase Client Setup ---
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
+        const supabaseUrl = 'https://pcnrpyjxhaxhdgxqiker.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjbnJweWp4aGF4aGRneHFpa2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjAyNzEsImV4cCI6MjA2NzczNjI3MX0.OyR6dfZs2lADfhuG4Dki9b9zBUMOQ1LorbfQmmCXAW4';
+        
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
         // --- Global State & Constants ---
         let currentUser = null;
         let userData = null;
-        let unsubscribeUser = null; 
-        const UPI_ID = 'uttamdk99@ptaxis';
-        const PAYEE_NAME = 'DevilWin';
+        let battlesSubscription = null;
         
         // --- UI Elements ---
         const appContainer = document.getElementById('app-container');
@@ -124,18 +153,61 @@
         const modalsContainer = document.getElementById('modals-container');
         
         // --- Helper Functions ---
-        const generateAvatar = (seed = 'default') => `https://api.dicebear.com/8.x/adventurer/svg?seed=${seed}`;
-        function showAlert(message, isError = false) { /* ... same as before ... */ }
-        const renderModal = (id, content) => { /* ... same as before ... */ };
+        const generateAvatar = (seed = 'default', name = 'user') => {
+            const femaleNames = ['priya', 'seema', 'pooja', 'sunita', 'geeta', 'neha', 'riya', 'sonia', 'mona', 'asha', 'rani', 'anita', 'kavita'];
+            const firstName = name ? name.split(' ')[0].toLowerCase() : 'user';
+            const gender = femaleNames.includes(firstName) ? 'female' : 'male';
+            return `https://api.dicebear.com/8.x/personas/svg?seed=${seed}&sex=${gender}`;
+        };
+
+        function showAlert(message, isError = false) {
+            const alertBox = document.getElementById('global-alert');
+            alertBox.classList.remove('hidden', 'border-green-500', 'border-red-500');
+            alertBox.classList.add(isError ? 'border-red-500' : 'border-green-500');
+            document.getElementById('global-alert-message').textContent = message;
+            setTimeout(() => alertBox.classList.add('hidden'), 5000);
+        }
+
+        const renderModal = (id, content) => {
+            closeModal();
+            const modal = document.createElement('div');
+            modal.id = id;
+            modal.className = "modal-overlay fixed inset-0 flex items-center justify-center z-50 p-4";
+            modal.innerHTML = `<div class="modal-content glassmorphism rounded-2xl w-full max-w-sm p-6 relative">${content}</div>`;
+            modalsContainer.appendChild(modal);
+            modal.addEventListener('click', (e) => { 
+                if (e.target.id === id) {
+                    closeModal();
+                }
+            });
+        };
+
         const closeModal = () => { modalsContainer.innerHTML = ''; };
+        
         window.closeModal = closeModal;
 
         // --- Authentication ---
         const renderAuthScreen = () => {
-            authContainer.innerHTML = `<div class="p-6 flex flex-col justify-center min-h-screen"><h1 class="text-5xl font-extrabold text-center mb-2 text-yellow-400 drop-shadow-lg">DevilWin</h1><p class="text-center text-gray-300 mb-8" id="auth-subtitle">Login to Your Kingdom</p><p id="auth-error" class="bg-red-500/20 text-red-300 p-3 rounded-lg mb-4 text-center hidden"></p><form id="auth-form" class="space-y-4"><div id="name-field" class="hidden"><input type="text" placeholder="Aapka Poora Naam" id="auth-name" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" /></div><input type="email" placeholder="Email" id="auth-email" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" required /><input type="password" placeholder="Password" id="auth-password" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" required /><button type="submit" id="auth-submit-btn" class="w-full p-3 bg-gradient-to-r from-red-500 to-yellow-500 rounded-lg font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50">Login</button></form><p class="text-center mt-6 text-gray-400"><span id="auth-toggle-text">Naye khiladi hain?</span><button id="auth-toggle-btn" class="text-yellow-400 font-bold ml-2 hover:underline">Sign Up</button></p></div>`;
+             authContainer.innerHTML = `
+                <div class="p-6 flex flex-col justify-center min-h-screen">
+                    <h1 class="text-5xl font-extrabold text-center mb-2 text-yellow-400 drop-shadow-lg">DevilWin</h1>
+                    <p class="text-center text-gray-300 mb-8" id="auth-subtitle">Login to Your Kingdom</p>
+                    <p id="auth-error" class="bg-red-500/20 text-red-300 p-3 rounded-lg mb-4 text-center hidden"></p>
+                    <form id="auth-form" class="space-y-4">
+                        <div id="name-field" class="hidden"><input type="text" placeholder="Aapka Poora Naam" id="auth-name" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" /></div>
+                        <input type="text" placeholder="Email ya Phone Number" id="auth-email" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" required />
+                        <input type="password" placeholder="6 digit password enter" id="auth-password" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" required />
+                        <div id="referral-field" class="hidden"><input type="text" placeholder="Referral Code (Optional)" id="auth-referral" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" /></div>
+                        <button type="submit" id="auth-submit-btn" class="w-full p-3 bg-gradient-to-r from-red-500 to-yellow-500 rounded-lg font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50">Login</button>
+                    </form>
+                    <p class="text-center mt-6 text-gray-400">
+                        <span id="auth-toggle-text">Naye khiladi hain?</span>
+                        <button id="auth-toggle-btn" class="text-yellow-400 font-bold ml-2 hover:underline">Sign Up</button>
+                    </p>
+                </div>
+            `;
             attachAuthListeners();
         };
-
         function attachAuthListeners() {
             let isLogin = true;
             const form = document.getElementById('auth-form');
@@ -144,40 +216,59 @@
             toggleBtn.addEventListener('click', () => {
                 isLogin = !isLogin;
                 document.getElementById('name-field').classList.toggle('hidden', isLogin);
-                document.getElementById('auth-subtitle').textContent = isLogin ? 'Login Karein' : 'Account Banayein';
+                document.getElementById('referral-field').classList.toggle('hidden', isLogin);
+                document.getElementById('auth-subtitle').textContent = isLogin ? 'Apne Kingdom mein Login karein' : 'Ultimate Battle Join Karein';
+                document.getElementById('auth-toggle-text').textContent = isLogin ? "Naye khiladi hain?" : "Pehle se champion hain?";
                 toggleBtn.textContent = isLogin ? "Sign Up" : "Login";
-                document.getElementById('auth-submit-btn').textContent = isLogin ? "Login" : "Sign Up";
+                document.getElementById('auth-submit-btn').textContent = isLogin ? "Login" : "Account Banayein";
             });
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const email = document.getElementById('auth-email').value;
+                let email = document.getElementById('auth-email').value;
                 const password = document.getElementById('auth-password').value;
                 const name = document.getElementById('auth-name').value;
+                const referralCode = document.getElementById('auth-referral').value;
                 const errorEl = document.getElementById('auth-error');
+                const submitBtn = document.getElementById('auth-submit-btn');
+                
+                if (!email.includes('@') && /^\d{10}$/.test(email)) {
+                    email = `${email}@devilwin.com`;
+                }
+
+                submitBtn.disabled = true;
                 errorEl.classList.add('hidden');
 
                 try {
+                    let response;
                     if (isLogin) {
-                        const { error } = await dbClient.auth.signInWithPassword({ email, password });
-                        if (error) throw error;
+                        response = await supabase.auth.signInWithPassword({ email, password });
                     } else {
-                        if (!name.trim()) throw new Error("Kripya apna naam daalein.");
-                        const { data: { user }, error } = await dbClient.auth.signUp({ email, password, options: { data: { name: name.trim() } } });
-                        if (error) throw error;
-                        
-                        // Create user profile in 'users' table
-                        const { error: profileError } = await dbClient.from('users').insert({
-                            id: user.id,
-                            name: name.trim(),
-                            email: user.email,
-                            wallet: { cash: 0, bonus: 10, winnings: 0 } // Signup bonus
+                        if (!name.trim()) {
+                           throw new Error("Kripya apna naam darj karein.");
+                        }
+                        response = await supabase.auth.signUp({ 
+                            email, 
+                            password,
+                            options: {
+                                data: { 
+                                    name: name.trim(),
+                                    referral_code_used: referralCode
+                                }
+                            }
                         });
-                        if (profileError) throw profileError;
                     }
+
+                    if (response.error) {
+                        throw response.error;
+                    }
+
                 } catch (err) {
-                    errorEl.textContent = err.message;
+                    console.error("Supabase Auth Error:", err);
+                    errorEl.textContent = err.message || 'Login/Signup fail ho gaya. Kripya baad mein try karein.';
                     errorEl.classList.remove('hidden');
+                } finally {
+                    submitBtn.disabled = false;
                 }
             });
         }
@@ -185,106 +276,146 @@
         // --- Wallet & Transactions ---
         function openWalletModal() {
             if (!userData) return;
-            const wallet = userData.wallet || { cash: 0, bonus: 0, winnings: 0 };
-            const totalBalance = wallet.cash + wallet.winnings + wallet.bonus;
-            const content = `<button onclick="window.closeModal()" class="absolute top-4 right-4 text-gray-400 text-2xl">&times;</button><h2 class="text-xl font-bold mb-4">Mera Wallet</h2><div class="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-xl mb-4"><p class="text-sm text-gray-200">Total Balance</p><p class="text-3xl font-bold">₹${totalBalance.toFixed(2)}</p></div><div class="grid grid-cols-2 gap-2 text-center text-sm mb-4"><div class="bg-gray-700 p-2 rounded-lg"><p class="text-gray-400">Cash</p><p class="font-bold">₹${wallet.cash.toFixed(2)}</p></div><div class="bg-gray-700 p-2 rounded-lg"><p class="text-gray-400">Winnings</p><p class="font-bold">₹${wallet.winnings.toFixed(2)}</p></div><div class="bg-gray-700 p-2 rounded-lg col-span-2"><p class="text-gray-400">Bonus</p><p class="font-bold">₹${wallet.bonus.toFixed(2)}</p></div></div><div class="grid grid-cols-2 gap-4"><button id="open-deposit-modal" class="bg-green-600 p-3 rounded-lg font-bold">Paise Daalein</button><button id="open-withdraw-modal" class="bg-yellow-500 text-black p-3 rounded-lg font-bold">Paise Nikalein</button></div>`;
+            const totalBalance = (userData.cash_balance || 0) + (userData.winnings_balance || 0) + (userData.bonus_balance || 0);
+            const content = `
+                <button onclick="window.closeModal()" class="absolute top-4 right-4 text-gray-400 text-2xl">&times;</button>
+                <h2 class="text-xl font-bold mb-4">Mera Wallet</h2>
+                <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-xl mb-4">
+                    <p class="text-sm text-gray-200">Total Balance</p>
+                    <p class="text-3xl font-bold">₹${totalBalance.toFixed(2)}</p>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-center text-sm mb-4">
+                    <div class="bg-gray-700 p-2 rounded-lg"><p class="text-gray-400">Cash</p><p class="font-bold">₹${(userData.cash_balance || 0).toFixed(2)}</p></div>
+                    <div class="bg-gray-700 p-2 rounded-lg"><p class="text-gray-400">Winnings</p><p class="font-bold">₹${(userData.winnings_balance || 0).toFixed(2)}</p></div>
+                    <div class="bg-gray-700 p-2 rounded-lg col-span-2"><p class="text-gray-400">Bonus</p><p class="font-bold">₹${(userData.bonus_balance || 0).toFixed(2)}</p></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="open-deposit-modal" class="bg-green-600 p-3 rounded-lg font-bold">Paise Daalein</button>
+                    <button id="open-withdraw-modal" class="bg-yellow-500 text-black p-3 rounded-lg font-bold">Paise Nikalein</button>
+                </div>
+                <div class="mt-4">
+                    <button id="open-history-modal" class="w-full bg-gray-600 p-3 rounded-lg font-bold">Transaction History</button>
+                </div>
+            `;
             renderModal('wallet-modal', content);
-            document.getElementById('open-deposit-modal').addEventListener('click', openDepositModal);
-            document.getElementById('open-withdraw-modal').addEventListener('click', openWithdrawModal);
-        }
-
-        function openDepositModal() {
-            const content = `<button onclick="window.closeModal()" class="absolute top-4 right-4 text-gray-400 text-2xl">&times;</button><h2 class="text-xl font-bold mb-4">Paise Daalein</h2><div id="deposit-step-1"><p class="text-sm text-gray-300 mb-2">Aap kitne paise daalna chahte hain? (Minimum ₹50)</p><input type="number" id="deposit-amount" placeholder="Amount (e.g., 100)" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 mb-3" /><button id="generate-qr-btn" class="w-full mt-2 p-3 bg-indigo-600 rounded-lg font-bold">QR Code Banayein</button></div><div id="deposit-step-2" class="hidden text-center"><p class="text-sm text-gray-300 mb-2">Is QR code ko scan karke payment karein</p><div id="qrcode-container" class="flex justify-center my-3"></div><form id="deposit-proof-form"><label class="block text-sm text-gray-400 my-3">Payment ka screenshot upload karein:</label><input type="file" id="deposit-proof" accept="image/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-500 file:text-black hover:file:bg-yellow-600" required /><p class="text-xs text-yellow-400 my-2">Warning: Galat screenshot par ₹100 penalty lagegi.</p><button type="submit" class="w-full mt-2 p-3 bg-green-600 rounded-lg font-bold">Request Jama Karein</button></form></div>`;
-            renderModal('deposit-modal', content);
-            document.getElementById('generate-qr-btn').addEventListener('click', () => {
-                const amount = parseFloat(document.getElementById('deposit-amount').value);
-                if (!amount || amount < 50) { showAlert("Kam se kam ₹50 deposit kar sakte hain.", true); return; }
-                generateUpiQrCode(amount);
-            });
-            document.getElementById('deposit-proof-form').addEventListener('submit', handleDepositRequest);
-        }
-
-        function generateUpiQrCode(amount) {
-            const upiString = `upi://pay?pa=${UPI_ID}&pn=${PAYEE_NAME}&am=${amount.toFixed(2)}&cu=INR&tn=Deposit for DevilWin`;
-            const qr = qrcode(0, 'L');
-            qr.addData(upiString);
-            qr.make();
-            document.getElementById('qrcode-container').innerHTML = qr.createImgTag(5, 10);
-            document.getElementById('deposit-step-1').classList.add('hidden');
-            document.getElementById('deposit-step-2').classList.remove('hidden');
-        }
-
-        async function handleDepositRequest(e) {
-            e.preventDefault();
-            const amount = parseFloat(document.getElementById('deposit-amount').value);
-            const proofFile = document.getElementById('deposit-proof').files[0];
-            if (!proofFile) { showAlert("Kripya screenshot upload karein.", true); return; }
-            
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            submitBtn.disabled = true; submitBtn.innerHTML = 'Uploading...';
-
-            try {
-                // 1. Upload screenshot to Supabase Storage
-                const filePath = `${currentUser.id}/${Date.now()}_${proofFile.name}`;
-                const { error: uploadError } = await dbClient.storage.from('deposits').upload(filePath, proofFile);
-                if (uploadError) throw uploadError;
-
-                // 2. Get public URL
-                const { data: { publicUrl } } = dbClient.storage.from('deposits').getPublicUrl(filePath);
-
-                // 3. Insert deposit request
-                const { error: dbError } = await dbClient.from('deposits').insert({
-                    user_id: currentUser.id, user_name: userData.name, amount, screenshot_url: publicUrl
-                });
-                if (dbError) throw dbError;
-
-                // 4. Add amount to user wallet instantly
-                const newBalance = (userData.wallet.cash || 0) + amount;
-                const { error: updateError } = await dbClient.from('users').update({ wallet: { ...userData.wallet, cash: newBalance } }).eq('id', currentUser.id);
-                if (updateError) throw updateError;
-                
-                closeModal();
-                showAlert("Request jama ho gayi hai. Amount wallet mein add kar diya gaya hai.");
-            } catch (error) {
-                showAlert(`Request fail ho gayi: ${error.message}`, true);
-            } finally {
-                submitBtn.disabled = false; submitBtn.innerHTML = 'Request Jama Karein';
-            }
-        }
-
-        function openWithdrawModal() {
-            const winnings = userData.wallet?.winnings || 0;
-            const content = `<button onclick="window.closeModal()" class="absolute top-4 right-4 text-gray-400 text-2xl">&times;</button><h2 class="text-xl font-bold mb-2">Paise Nikalein</h2><p class="text-sm text-gray-400 mb-4">Aap ₹${winnings.toFixed(2)} tak nikal sakte hain. (Minimum ₹100)</p><form id="withdraw-form"><input type="number" id="withdraw-amount" placeholder="Amount" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 mb-3" required /><textarea id="withdraw-details" placeholder="Aapki UPI ID ya Bank Details" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 mb-3" required></textarea><button type="submit" class="w-full mt-4 p-3 bg-yellow-500 text-black rounded-lg font-bold">Request Withdraw</button></form>`;
-            renderModal('withdraw-modal', content);
-            document.getElementById('withdraw-form').addEventListener('submit', handleWithdrawRequest);
-        }
-
-        async function handleWithdrawRequest(e) {
-            e.preventDefault();
-            const amount = parseFloat(document.getElementById('withdraw-amount').value);
-            const details = document.getElementById('withdraw-details').value;
-            const winnings = userData.wallet?.winnings || 0;
-
-            if (!amount || !details.trim()) { showAlert("Kripya sahi details daalein.", true); return; }
-            if (amount < 100) { showAlert("Kam se kam ₹100 nikal sakte hain.", true); return; }
-            if (amount > winnings) { showAlert("Aapke paas itne paise nahi hain.", true); return; }
-            
-            try {
-                const { error } = await dbClient.from('withdrawals').insert({
-                    user_id: currentUser.id, user_name: userData.name, gross_amount: amount, upi_id: details
-                });
-                if (error) throw error;
-                
-                closeModal();
-                showAlert("Withdraw request bhej di gayi hai. 2-4 ghante mein process ho jayegi.");
-            } catch (error) {
-                showAlert(`Request fail ho gayi: ${error.message}`, true);
-            }
         }
         
+        // --- Battle System ---
+        function openCreateBattleModal() {
+            const content = `
+                <button onclick="window.closeModal()" class="absolute top-4 right-4 text-gray-400 text-2xl">&times;</button>
+                <h2 class="text-xl font-bold mb-4">Naya Battle Banayein</h2>
+                <form id="create-battle-form">
+                    <input type="number" id="battle-amount" placeholder="Amount (e.g., 50)" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 mb-3" required />
+                    <button type="submit" class="w-full mt-4 p-3 bg-green-600 rounded-lg font-bold">Battle Banayein</button>
+                </form>
+            `;
+            renderModal('create-battle-modal', content);
+            document.getElementById('create-battle-form').addEventListener('submit', handleCreateBattle);
+        }
+
+        async function handleCreateBattle(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('battle-amount').value);
+            if (!amount || amount <= 0) {
+                showAlert("Sahi amount daalein.", true); return;
+            }
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true; submitBtn.textContent = 'Creating...';
+
+            try {
+                const { data, error } = await supabase.rpc('create_battle', { p_amount: amount });
+
+                if (error) {
+                    throw error;
+                }
+                
+                closeModal();
+                showAlert("Aapka battle ban gaya hai!");
+            } catch (error) {
+                console.error("Battle creation failed:", error);
+                showAlert(`Battle banane mein dikkat aayi: ${error.message}`, true);
+            } finally {
+                submitBtn.disabled = false; submitBtn.textContent = 'Battle Banayein';
+            }
+        }
+
+        function renderBattles(battles) {
+            const activeList = document.getElementById('active-battles-list');
+            const liveList = document.getElementById('live-battles-list');
+            activeList.innerHTML = '';
+            liveList.innerHTML = '';
+            let activeCount = 0, liveCount = 0;
+
+            for (const battle of battles) {
+                const battleCard = document.createElement('div');
+                battleCard.className = 'glassmorphism p-4 rounded-lg flex justify-between items-center';
+                const isCreator = battle.creator_id === currentUser.id;
+
+                if (battle.status === 'active') {
+                    activeCount++;
+                    battleCard.innerHTML = `
+                        <div>
+                            <p class="font-bold">${battle.profiles?.name || 'Player'}</p>
+                            <p class="text-sm text-yellow-400">Amount: ₹${battle.amount}</p>
+                        </div>
+                        ${isCreator ? 
+                            `<button class="creator-cancel-btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" data-id="${battle.id}" data-amount="${battle.amount}">Cancel</button>` :
+                            `<button class="request-join-btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded" data-id="${battle.id}">Request</button>`
+                        }
+                    `;
+                    activeList.appendChild(battleCard);
+                }
+                // TODO: Add rendering for other battle statuses (live, requested, etc.)
+            }
+
+            if (activeCount === 0) activeList.innerHTML = '<p class="text-center text-gray-500">No active battles. Create one!</p>';
+            if (liveCount === 0) liveList.innerHTML = '<p class="text-center text-gray-500">No live battles right now.</p>';
+        }
+
+        async function listenToBattles() {
+            if (battlesSubscription) {
+                battlesSubscription.unsubscribe();
+            }
+
+            // Initial fetch
+            const { data: initialBattles, error } = await supabase
+                .from('battles')
+                .select(`*, profiles (name)`) // Fetch creator's name
+                .in('status', ['active', 'requested', 'live', 'disputed']);
+            
+            if (error) {
+                console.error("Error fetching initial battles:", error);
+                return;
+            }
+            renderBattles(initialBattles);
+
+            // Listen for realtime changes
+            battlesSubscription = supabase
+                .channel('public:battles')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'battles' }, async (payload) => {
+                    console.log('Battle change received!', payload);
+                    // Refetch all battles to update the UI
+                     const { data: updatedBattles, error: updateError } = await supabase
+                        .from('battles')
+                        .select(`*, profiles (name)`)
+                        .in('status', ['active', 'requested', 'live', 'disputed']);
+                    if (updateError) {
+                        console.error("Error fetching updated battles:", updateError);
+                    } else {
+                        renderBattles(updatedBattles);
+                    }
+                })
+                .subscribe();
+        }
+
         // --- Main App Initialization ---
         function initializeMainApp() {
             if (document.getElementById('home-page').classList.contains('initialized')) return;
+            
+            if (!currentUser) return;
+
             document.getElementById('home-page').classList.add('active', 'initialized');
             
             const navItems = document.querySelectorAll('.bottom-nav-item');
@@ -293,52 +424,142 @@
                     const tabId = item.dataset.tab;
                     navItems.forEach(nav => nav.classList.remove('active'));
                     item.classList.add('active');
-                    document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === `${tabId}-page`));
+                    if(tabId === 'profile-nav') {
+                         document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === 'profile-page'));
+                    } else {
+                         document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === `${tabId}-page`));
+                    }
                 });
             });
 
+            const profileBtn = document.getElementById('header-profile-btn');
+            const profileDropdown = document.getElementById('profile-dropdown');
+            profileBtn.addEventListener('click', () => profileDropdown.classList.toggle('hidden'));
+            document.addEventListener('click', (e) => {
+                if (!profileBtn.contains(e.target) && !profileDropdown.contains(e.target)) {
+                    profileDropdown.classList.add('hidden');
+                }
+            });
+            
             document.getElementById('header-wallet-btn').addEventListener('click', openWalletModal);
-            document.getElementById('logout-btn').addEventListener('click', () => dbClient.auth.signOut());
+            document.getElementById('profile-menu-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelector('[data-tab="profile-nav"]').click();
+                profileDropdown.classList.add('hidden');
+            });
+            document.getElementById('logout-btn').addEventListener('click', async () => {
+                await supabase.auth.signOut();
+            });
             document.getElementById('view-battles-btn').addEventListener('click', () => document.querySelector('[data-tab="battles"]').click());
-            document.getElementById('create-battle-btn').addEventListener('click', () => alert("Battle system jald hi aa raha hai!"));
+            document.getElementById('create-battle-btn').addEventListener('click', openCreateBattleModal);
+            document.getElementById('copy-referral-btn').addEventListener('click', () => {
+                if(navigator.clipboard && userData?.referral_code) {
+                    navigator.clipboard.writeText(userData.referral_code);
+                    showAlert('Referral code copy ho gaya!');
+                }
+            });
+
+            updateUIWithUserData();
+            listenToBattles();
         }
 
         function updateUIWithUserData() {
              if (!userData || !currentUser) return;
-            const wallet = userData.wallet || { cash: 0, winnings: 0, bonus: 0 };
-            const totalBalance = wallet.cash + wallet.winnings + wallet.bonus;
+            const totalBalance = (userData.cash_balance || 0) + (userData.winnings_balance || 0) + (userData.bonus_balance || 0);
             document.getElementById('header-wallet-balance').textContent = `₹${totalBalance.toFixed(2)}`;
             document.getElementById('profile-name').textContent = userData.name;
-            document.getElementById('profile-email').textContent = userData.email;
-            document.getElementById('profile-cash-won').textContent = `₹${userData.total_winnings || 0}`;
-            document.getElementById('profile-battles-played').textContent = userData.battles_played || 0;
+            document.getElementById('profile-email').textContent = userData.email.includes('@devilwin.com') ? userData.email.split('@')[0] : userData.email;
+            
+            const referralCodeDisplay = document.getElementById('referral-code-display');
+            if (referralCodeDisplay) {
+                referralCodeDisplay.textContent = userData.referral_code;
+            }
+            
+            const profileUid = document.getElementById('profile-uid');
+            if (profileUid) {
+                profileUid.textContent = `ID: ${currentUser.id}`;
+            }
+
             const avatarUrl = generateAvatar(currentUser.id, userData.name);
             document.getElementById('header-profile-btn').innerHTML = `<img src="${avatarUrl}" class="w-10 h-10 rounded-full">`;
-            document.getElementById('profile-page-avatar').src = avatarUrl;
+            
+            const profilePageAvatar = document.getElementById('profile-page-avatar');
+            if (profilePageAvatar) {
+                profilePageAvatar.innerHTML = `<img src="${avatarUrl}" class="w-24 h-24 rounded-full">`;
+            }
         }
 
         // --- Auth State Change Handler ---
-        dbClient.auth.onAuthStateChange(async (event, session) => {
-            if (session && session.user) {
-                currentUser = session.user;
+        const showLoadingScreen = () => {
+            authContainer.innerHTML = `
+                <div class="flex min-h-screen items-center justify-center">
+                    <div>
+                        <h1 class="text-5xl font-extrabold text-center mb-2 text-yellow-400 drop-shadow-lg">DevilWin</h1>
+                        <p class="text-center text-gray-300 mt-4 text-xl animate-pulse">Loading...</p>
+                    </div>
+                </div>
+            `;
+            authContainer.classList.remove('hidden');
+            appContainer.classList.add('hidden');
+        };
+
+        showLoadingScreen(); // Show loading screen immediately
+
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            try {
+                const user = session?.user;
                 
-                const { data, error } = await dbClient.from('users').select('*').eq('id', currentUser.id).single();
-                if (data) {
-                    userData = data;
-                    authContainer.innerHTML = '';
-                    authContainer.style.display = 'none';
-                    appContainer.style.display = 'block';
-                    initializeMainApp();
-                    updateUIWithUserData(); 
-                } else {
-                    // This case is handled during signup
-                    console.log("User in auth but not in DB, waiting for creation...");
+                if (battlesSubscription) {
+                    battlesSubscription.unsubscribe();
+                    battlesSubscription = null;
                 }
-            } else {
-                currentUser = null;
-                userData = null;
-                appContainer.style.display = 'none';
-                authContainer.style.display = 'block';
+
+                if (user) {
+                    currentUser = user;
+                    
+                    const { data, error } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
+
+                    if (error && error.code !== 'PGRST116') {
+                        throw new Error(`Error fetching profile: ${error.message}`);
+                    }
+                    
+                    if (data) {
+                        userData = data;
+                        authContainer.classList.add('hidden');
+                        appContainer.classList.remove('hidden');
+                        initializeMainApp();
+
+                        const userProfileChannel = supabase
+                            .channel(`public:profiles:id=eq.${user.id}`)
+                            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, payload => {
+                                console.log('Profile updated!', payload.new);
+                                userData = payload.new;
+                                updateUIWithUserData();
+                            })
+                            .subscribe();
+
+                    } else {
+                        throw new Error("User exists in Auth but not in profiles table.");
+                    }
+
+                } else {
+                    currentUser = null;
+                    userData = null;
+                    
+                    appContainer.classList.add('hidden');
+                    authContainer.classList.remove('hidden');
+                    const homePage = document.getElementById('home-page');
+                    if(homePage) homePage.classList.remove('initialized');
+                    renderAuthScreen();
+                }
+            } catch (e) {
+                console.error("Critical error in auth state handler:", e);
+                showAlert(`An error occurred: ${e.message}. Please refresh.`, true);
+                // As a fallback, show the login screen so the user is not stuck.
                 renderAuthScreen();
             }
         });
