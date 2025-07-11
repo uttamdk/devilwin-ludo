@@ -192,6 +192,18 @@
                 <div class="p-6 flex flex-col justify-center min-h-screen">
                     <h1 class="text-5xl font-extrabold text-center mb-2 text-yellow-400 drop-shadow-lg">DevilWin</h1>
                     <p class="text-center text-gray-300 mb-8" id="auth-subtitle">Login to Your Kingdom</p>
+                    
+                    <button id="google-login-btn" class="w-full p-3 mb-4 bg-white text-gray-700 rounded-lg font-bold flex items-center justify-center shadow-md hover:bg-gray-200 transition-colors">
+                        <img src="https://www.google.com/favicon.ico" alt="Google icon" class="w-6 h-6 mr-3">
+                        Sign in with Google
+                    </button>
+
+                    <div class="relative flex py-2 items-center">
+                        <div class="flex-grow border-t border-gray-600"></div>
+                        <span class="flex-shrink mx-4 text-gray-400">OR</span>
+                        <div class="flex-grow border-t border-gray-600"></div>
+                    </div>
+
                     <p id="auth-error" class="bg-red-500/20 text-red-300 p-3 rounded-lg mb-4 text-center hidden"></p>
                     <form id="auth-form" class="space-y-4">
                         <div id="name-field" class="hidden"><input type="text" placeholder="Aapka Poora Naam" id="auth-name" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500" /></div>
@@ -212,6 +224,13 @@
             let isLogin = true;
             const form = document.getElementById('auth-form');
             const toggleBtn = document.getElementById('auth-toggle-btn');
+            const googleLoginBtn = document.getElementById('google-login-btn');
+
+            googleLoginBtn.addEventListener('click', async () => {
+                await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                });
+            });
             
             toggleBtn.addEventListener('click', () => {
                 isLogin = !isLogin;
@@ -276,7 +295,7 @@
         // --- Wallet & Transactions ---
         function openWalletModal() {
             if (!userData) return;
-            const totalBalance = (userData.cash_balance || 0) + (userData.winnings_balance || 0) + (userData.bonus_balance || 0);
+            const totalBalance = (userData.main_balance || 0) + (userData.bonus_balance || 0);
             const content = `
                 <button onclick="window.closeModal()" class="absolute top-4 right-4 text-gray-400 text-2xl">&times;</button>
                 <h2 class="text-xl font-bold mb-4">Mera Wallet</h2>
@@ -285,9 +304,8 @@
                     <p class="text-3xl font-bold">₹${totalBalance.toFixed(2)}</p>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-center text-sm mb-4">
-                    <div class="bg-gray-700 p-2 rounded-lg"><p class="text-gray-400">Cash</p><p class="font-bold">₹${(userData.cash_balance || 0).toFixed(2)}</p></div>
-                    <div class="bg-gray-700 p-2 rounded-lg"><p class="text-gray-400">Winnings</p><p class="font-bold">₹${(userData.winnings_balance || 0).toFixed(2)}</p></div>
-                    <div class="bg-gray-700 p-2 rounded-lg col-span-2"><p class="text-gray-400">Bonus</p><p class="font-bold">₹${(userData.bonus_balance || 0).toFixed(2)}</p></div>
+                    <div class="bg-gray-700 p-2 rounded-lg"><p class="text-gray-400">Main Balance</p><p class="font-bold">₹${(userData.main_balance || 0).toFixed(2)}</p></div>
+                    <div class="bg-gray-700 p-2 rounded-lg"><p class="text-gray-400">Bonus</p><p class="font-bold">₹${(userData.bonus_balance || 0).toFixed(2)}</p></div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <button id="open-deposit-modal" class="bg-green-600 p-3 rounded-lg font-bold">Paise Daalein</button>
@@ -465,7 +483,7 @@
 
         function updateUIWithUserData() {
              if (!userData || !currentUser) return;
-            const totalBalance = (userData.cash_balance || 0) + (userData.winnings_balance || 0) + (userData.bonus_balance || 0);
+            const totalBalance = (userData.main_balance || 0) + (userData.bonus_balance || 0);
             document.getElementById('header-wallet-balance').textContent = `₹${totalBalance.toFixed(2)}`;
             document.getElementById('profile-name').textContent = userData.name;
             document.getElementById('profile-email').textContent = userData.email.includes('@devilwin.com') ? userData.email.split('@')[0] : userData.email;
@@ -503,65 +521,68 @@
             appContainer.classList.add('hidden');
         };
 
-        showLoadingScreen(); // Show loading screen immediately
+        const showApp = () => {
+            authContainer.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            initializeMainApp();
+        };
 
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            try {
-                const user = session?.user;
-                
-                if (battlesSubscription) {
-                    battlesSubscription.unsubscribe();
-                    battlesSubscription = null;
-                }
+        const showLogin = () => {
+            appContainer.classList.add('hidden');
+            authContainer.classList.remove('hidden');
+            renderAuthScreen();
+        };
 
-                if (user) {
-                    currentUser = user;
-                    
-                    const { data, error } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', user.id)
-                        .single();
+        // --- Main App Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            showLoadingScreen();
 
-                    if (error && error.code !== 'PGRST116') {
-                        throw new Error(`Error fetching profile: ${error.message}`);
+            supabase.auth.onAuthStateChange(async (event, session) => {
+                console.log('Auth event:', event);
+                try {
+                    const user = session?.user;
+
+                    if (battlesSubscription) {
+                        battlesSubscription.unsubscribe();
+                        battlesSubscription = null;
                     }
-                    
-                    if (data) {
-                        userData = data;
-                        authContainer.classList.add('hidden');
-                        appContainer.classList.remove('hidden');
-                        initializeMainApp();
 
-                        const userProfileChannel = supabase
-                            .channel(`public:profiles:id=eq.${user.id}`)
-                            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, payload => {
-                                console.log('Profile updated!', payload.new);
-                                userData = payload.new;
-                                updateUIWithUserData();
-                            })
-                            .subscribe();
+                    if (user) {
+                        console.log('User found, fetching profile...');
+                        currentUser = user;
+                        
+                        const { data, error } = await supabase
+                            .from('profiles')
+                            .select('*')
+                            .eq('id', user.id)
+                            .single();
+
+                        if (error && error.code !== 'PGRST116') { // Ignore "No rows found" error
+                            throw new Error(`Error fetching profile: ${error.message}`);
+                        }
+                        
+                        if (data) {
+                            console.log('Profile found, showing app.');
+                            userData = data;
+                            showApp();
+                        } else {
+                            // This can happen if the user is created in auth but the profile trigger fails.
+                            // We log them out to force a clean state.
+                            throw new Error("User profile not found. Logging out.");
+                        }
 
                     } else {
-                        throw new Error("User exists in Auth but not in profiles table.");
+                        console.log('No user session found, showing login screen.');
+                        currentUser = null;
+                        userData = null;
+                        showLogin();
                     }
-
-                } else {
-                    currentUser = null;
-                    userData = null;
-                    
-                    appContainer.classList.add('hidden');
-                    authContainer.classList.remove('hidden');
-                    const homePage = document.getElementById('home-page');
-                    if(homePage) homePage.classList.remove('initialized');
-                    renderAuthScreen();
+                } catch (e) {
+                    console.error("Critical error in auth state handler:", e);
+                    showAlert(`An error occurred: ${e.message}. Please refresh.`, true);
+                    showLogin(); // Fallback to login screen on any error
                 }
-            } catch (e) {
-                console.error("Critical error in auth state handler:", e);
-                showAlert(`An error occurred: ${e.message}. Please refresh.`, true);
-                // As a fallback, show the login screen so the user is not stuck.
-                renderAuthScreen();
-            }
+            });
         });
     </script>
 </body>
