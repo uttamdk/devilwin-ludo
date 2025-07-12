@@ -5,17 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DEVILWIN - Admin Panel</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .sidebar-link.active { background-color: #4f46e5; color: white; }
-        .stat-card { background-color: #1f2937; border-left: 5px solid #fbbf24; }
+        .stat-card {
+            background-color: #1f2937;
+            border-left: 5px solid #fbbf24;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
         .admin-notification {
             position: fixed;
             top: 20px;
             right: 20px;
-            z-index: 1000;
+            z-index: 1050;
             padding: 1rem 1.5rem;
             border-radius: 0.5rem;
             font-weight: 500;
@@ -24,11 +35,40 @@
             transform: translateX(200%);
             transition: transform 0.5s ease-in-out;
         }
-        .admin-notification.show {
-            transform: translateX(0);
-        }
+        .admin-notification.show { transform: translateX(0); }
         .admin-notification.success { background-color: #16a34a; }
         .admin-notification.error { background-color: #dc2626; }
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+        .switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4b5563; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #4f46e5; }
+        input:focus + .slider { box-shadow: 0 0 1px #4f46e5; }
+        input:checked + .slider:before { transform: translateX(26px); }
+        .image-modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); z-index: 1040;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .image-modal-backdrop.show { opacity: 1; }
+        .image-modal-content {
+            position: relative; max-width: 90vw; max-height: 90vh;
+            transform: scale(0.7); transition: transform 0.3s ease;
+        }
+        .image-modal-backdrop.show .image-modal-content { transform: scale(1); }
+        .image-modal-content img {
+            width: 100%; height: auto; max-width: 100%; max-height: 85vh;
+            border-radius: 0.5rem;
+        }
+        .image-modal-close {
+            position: absolute; top: -15px; right: -15px; background-color: white;
+            color: #1f2937; border-radius: 50%; width: 30px; height: 30px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.2rem; cursor: pointer; border: 2px solid #1f2937;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200">
@@ -63,7 +103,12 @@
                 <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="users"><i class="fas fa-users w-6"></i><span>Users</span></a>
                 <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="deposits"><i class="fas fa-arrow-down w-6"></i><span>Deposit Requests</span></a>
                 <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="withdrawals"><i class="fas fa-arrow-up w-6"></i><span>Withdrawal Requests</span></a>
-                <!-- <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="disputes"><i class="fas fa-gavel w-6"></i><span>Game Disputes</span></a> -->
+                <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="wallet-adjust"><i class="fas fa-wallet w-6"></i><span>Wallet Adjust</span></a>
+                <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="disputes"><i class="fas fa-gavel w-6"></i><span>Game Disputes</span></a>
+                <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="fraud-monitor"><i class="fas fa-user-secret w-6"></i><span>Fraud Monitor</span></a>
+                <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="match-history"><i class="fas fa-history w-6"></i><span>Match History</span></a>
+                <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="activity-log"><i class="fas fa-clipboard-list w-6"></i><span>Activity Log</span></a>
+                <a href="#" class="sidebar-link flex items-center px-4 py-2 rounded-lg hover:bg-gray-700" data-section="settings"><i class="fas fa-cog w-6"></i><span>Settings</span></a>
             </nav>
             <div class="p-4 border-t border-gray-700">
                 <button id="admin-logout-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Logout</button>
@@ -75,16 +120,25 @@
             <section id="users-section" class="admin-section hidden"></section>
             <section id="deposits-section" class="admin-section hidden"></section>
             <section id="withdrawals-section" class="admin-section hidden"></section>
-            <!-- <section id="disputes-section" class="admin-section hidden"></section> -->
+            <section id="wallet-adjust-section" class="admin-section hidden"></section>
+            <section id="disputes-section" class="admin-section hidden"></section>
+            <section id="fraud-monitor-section" class="admin-section hidden"></section>
+            <section id="match-history-section" class="admin-section hidden"></section>
+            <section id="activity-log-section" class="admin-section hidden"></section>
+            <section id="settings-section" class="admin-section hidden"></section>
         </main>
     </div>
     
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+    <div id="image-modal-container"></div>
 
-        const supabaseUrl = 'https://pcnrpyjxhaxhdgxqiker.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjbnJweWp4aGF4aGRneHFpa2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNjAyNzEsImV4cCI6MjA2NzczNjI3MX0.OyR6dfZs2lADfhuG4Dki9b9zBUMOQ1LorbfQmmCXAW4';
-        const supabase = createClient(supabaseUrl, supabaseKey);
+    <script>
+        const SUPABASE_URL = 'https://mfkynknzyqgslwinstpm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ma3lua256eXFnc2x3aW5zdHBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwNzc2MzksImV4cCI6MjA2NzY1MzYzOX0._nC7-O4mnZ9bpbgdXvIcn3HAidjAooqh3bpy-iDeGW4';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Global state
+        let subscriptions = [];
+        let currentSession = null;
 
         const adminLoginView = document.getElementById('admin-login-view');
         const adminPanelView = document.getElementById('admin-panel-view');
@@ -92,7 +146,6 @@
         const adminLogoutBtn = document.getElementById('admin-logout-btn');
         const adminLoginError = document.getElementById('admin-login-error');
 
-        // --- Admin Notification System ---
         function showAdminNotification(message, isError = false) {
             const notificationArea = document.getElementById('admin-notification-area');
             const notification = document.createElement('div');
@@ -100,39 +153,59 @@
             notification.textContent = message;
             notificationArea.appendChild(notification);
             
-            setTimeout(() => {
-                notification.classList.add('show');
-            }, 10);
-
+            setTimeout(() => { notification.classList.add('show'); }, 10);
             setTimeout(() => {
                 notification.classList.remove('show');
-                setTimeout(() => {
-                    notification.remove();
-                }, 500);
+                setTimeout(() => { notification.remove(); }, 500);
             }, 5000);
         }
 
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session?.user) {
-                // Check if the user is an admin
-                const { data: isAdmin, error } = await supabase.rpc('is_admin');
-                
-                if (error || !isAdmin) {
-                    await supabase.auth.signOut();
-                    showLoginError("Aapke paas admin access nahi hai.");
-                    adminPanelView.classList.add('hidden');
-                    adminPanelView.classList.remove('flex');
-                    adminLoginView.classList.remove('hidden');
-                } else {
+        async function logAdminAction(action, details = {}) {
+            if (!currentSession) return;
+            try {
+                await supabaseClient.from('admin_logs').insert({
+                    admin_id: currentSession.user.id,
+                    admin_email: currentSession.user.email,
+                    action: action,
+                    target_user: details.targetUser || null,
+                    details: details.details || null
+                });
+            } catch (error) {
+                console.error("Failed to log admin action:", error);
+            }
+        }
+
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            currentSession = session;
+            if (session) {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('admins')
+                        .select('id')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (error || !data) {
+                        await supabaseClient.auth.signOut();
+                        showLoginError("Aapke paas admin access nahi hai.");
+                        return;
+                    }
+                    
                     adminLoginView.classList.add('hidden');
                     adminPanelView.classList.remove('hidden');
                     adminPanelView.classList.add('flex');
                     initAdminPanel();
+
+                } catch (e) {
+                     await supabaseClient.auth.signOut();
+                     showLoginError("Admin verification fail ho gayi.");
                 }
             } else {
                 adminPanelView.classList.add('hidden');
                 adminPanelView.classList.remove('flex');
                 adminLoginView.classList.remove('hidden');
+                subscriptions.forEach(sub => sub.unsubscribe());
+                subscriptions = [];
             }
         });
         
@@ -146,18 +219,16 @@
             adminLoginError.classList.add('hidden');
             const email = document.getElementById('admin-email').value;
             const password = document.getElementById('admin-pass').value;
-            
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
-
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) {
                 showLoginError("Galat email ya password.");
                 console.error(error);
             }
-            // onAuthStateChange will handle successful login
         });
 
         adminLogoutBtn.addEventListener('click', async () => {
-            await supabase.auth.signOut();
+            await logAdminAction('admin-logout');
+            await supabaseClient.auth.signOut();
         });
 
         function initAdminPanel() {
@@ -176,45 +247,66 @@
 
         function loadDataForView(view) {
             const container = document.getElementById(`${view}-section`);
-            container.innerHTML = `<h2 class="text-3xl font-bold mb-6 text-gray-100">${view.charAt(0).toUpperCase() + view.slice(1)}</h2><div id="${view}-content"><p class="text-gray-400">Loading...</p></div>`;
+            container.innerHTML = `<h2 class="text-3xl font-bold mb-6 text-gray-100">${view.charAt(0).toUpperCase() + view.slice(1).replace(/-/g, ' ')}</h2><div id="${view}-content"><div class="flex justify-center items-center p-8"><i class="fas fa-spinner fa-spin text-3xl text-yellow-400"></i></div></div>`;
             const contentContainer = document.getElementById(`${view}-content`);
             switch (view) {
                 case 'dashboard': loadDashboard(contentContainer); break;
                 case 'users': loadUsers(contentContainer); break;
-                case 'deposits': loadRequests(contentContainer, 'Deposit'); break;
-                case 'withdrawals': loadRequests(contentContainer, 'Withdrawal'); break;
+                case 'deposits': loadRequests(contentContainer, 'deposits', 'Deposit'); break;
+                case 'withdrawals': loadRequests(contentContainer, 'withdrawals', 'Withdrawal'); break;
+                case 'wallet-adjust': loadWalletAdjust(contentContainer); break;
+                // Other sections can be added here
+                default: contentContainer.innerHTML = '<p>This section is under construction.</p>';
             }
+        }
+        
+        function showImageModal(imageUrl) {
+            const modalContainer = document.getElementById('image-modal-container');
+            modalContainer.innerHTML = `
+                <div id="image-modal" class="image-modal-backdrop">
+                    <div class="image-modal-content">
+                        <span class="image-modal-close">&times;</span>
+                        <img src="${imageUrl}" alt="Screenshot" onerror="this.onerror=null;this.src='https://placehold.co/600x400/1f2937/ffffff?text=Image+Not+Found';">
+                    </div>
+                </div>
+            `;
+            const modal = document.getElementById('image-modal');
+            setTimeout(() => modal.classList.add('show'), 10);
+
+            const closeModal = () => {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+            };
+            
+            modal.querySelector('.image-modal-close').addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
         }
 
         async function loadDashboard(container) {
-             try {
-                const { count: userCount, error: userError } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
-                const { data: totalWinningsData, error: winningsError } = await supabase.from('profiles').select('total_winnings');
-                const { count: pendingDeposits, error: depositError } = await supabase.from('transactions').select('*', { count: 'exact', head: true }).eq('status', 'pending').eq('type', 'Deposit');
-                const { count: pendingWithdrawals, error: withdrawalError } = await supabase.from('transactions').select('*', { count: 'exact', head: true }).eq('status', 'pending').eq('type', 'Withdrawal');
+            try {
+                const { data: users, error: usersError } = await supabaseClient.from('users').select('*');
+                const { data: battles, error: battlesError } = await supabaseClient.from('battles').select('*');
+                if (usersError) throw usersError;
+                if (battlesError) throw battlesError;
 
-                if (userError || winningsError || depositError || withdrawalError) throw new Error(userError?.message || winningsError?.message || depositError?.message || withdrawalError?.message);
-
-                const totalWinnings = totalWinningsData.reduce((acc, user) => acc + (user.total_winnings || 0), 0);
+                const totalUsers = users.length;
+                let activeUsersToday = users.filter(u => u.last_seen && new Date(u.last_seen) > new Date(Date.now() - 24*60*60*1000)).length;
+                let totalCoinsCirculating = users.reduce((acc, u) => acc + (u.total_amount || 0), 0);
+                
+                let ongoingMatches = battles.filter(b => b.status === 'live' || b.status === 'active').length;
+                let completedMatches = battles.filter(b => b.status === 'completed').length;
+                let totalProfit = battles.reduce((acc, b) => acc + (b.commission || 0), 0);
 
                 container.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div class="stat-card p-6 rounded-lg shadow-lg">
-                            <p class="text-sm text-gray-400">Total Users</p>
-                            <p class="text-3xl font-bold">${userCount}</p>
-                        </div>
-                        <div class="stat-card p-6 rounded-lg shadow-lg">
-                            <p class="text-sm text-gray-400">Total Winnings Distributed</p>
-                            <p class="text-3xl font-bold">₹${totalWinnings.toFixed(2)}</p>
-                        </div>
-                        <div class="stat-card p-6 rounded-lg shadow-lg bg-green-600/20 border-green-500">
-                            <p class="text-sm text-gray-300">Pending Deposits</p>
-                            <p class="text-3xl font-bold">${pendingDeposits}</p>
-                        </div>
-                        <div class="stat-card p-6 rounded-lg shadow-lg bg-red-600/20 border-red-500">
-                            <p class="text-sm text-gray-300">Pending Withdrawals</p>
-                            <p class="text-3xl font-bold">${pendingWithdrawals}</p>
-                        </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="stat-card p-6 rounded-lg shadow-lg flex items-center space-x-4"><i class="fas fa-users text-3xl text-blue-400"></i><div><p class="text-sm text-gray-400">Kul Registered Users</p><p class="text-3xl font-bold">${totalUsers}</p></div></div>
+                        <div class="stat-card p-6 rounded-lg shadow-lg flex items-center space-x-4"><i class="fas fa-chart-line text-3xl text-green-400"></i><div><p class="text-sm text-gray-400">Aaj ke Active Users</p><p class="text-3xl font-bold">${activeUsersToday}</p></div></div>
+                        <div class="stat-card p-6 rounded-lg shadow-lg flex items-center space-x-4"><i class="fas fa-gamepad text-3xl text-purple-400"></i><div><p class="text-sm text-gray-400">Chal Rahe Matches</p><p class="text-3xl font-bold">${ongoingMatches}</p></div></div>
+                        <div class="stat-card p-6 rounded-lg shadow-lg flex items-center space-x-4"><i class="fas fa-check-circle text-3xl text-teal-400"></i><div><p class="text-sm text-gray-400">Poore Hue Matches</p><p class="text-3xl font-bold">${completedMatches}</p></div></div>
+                        <div class="stat-card p-6 rounded-lg shadow-lg flex items-center space-x-4"><i class="fas fa-coins text-3xl text-yellow-400"></i><div><p class="text-sm text-gray-400">Kul Coins Circulation Mein</p><p class="text-3xl font-bold">₹${totalCoinsCirculating.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p></div></div>
+                        <div class="stat-card p-6 rounded-lg shadow-lg flex items-center space-x-4"><i class="fas fa-hand-holding-usd text-3xl text-pink-400"></i><div><p class="text-sm text-gray-400">Platform Profit (Fees)</p><p class="text-3xl font-bold">₹${totalProfit.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p></div></div>
                     </div>
                 `;
             } catch (error) {
@@ -222,142 +314,202 @@
                 container.innerHTML = `<p class="text-red-400">Dashboard data load nahi ho saka. Console check karein.</p>`;
             }
         }
+
+        function loadUsers(container) {
+            const userSub = supabaseClient.from('users').on('*', payload => {
+                renderUsers(container);
+            }).subscribe();
+            subscriptions.push(userSub);
+            renderUsers(container);
+        }
         
-        async function loadUsers(container) {
-            const { data: users, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-
+        async function renderUsers(container) {
+            const { data, error } = await supabaseClient.from('users').select('*').order('created_at', { ascending: false });
             if (error) {
-                console.error("Error loading users:", error);
-                container.innerHTML += '<p class="text-red-400">Users load nahi ho sake. Console check karein.</p>';
-                return;
-            }
-
-            let content = `<h2 class="text-3xl font-bold mb-6 text-gray-100">User Management</h2>`;
-            if (!users || users.length === 0) {
-                content += '<p class="text-gray-400">Koi user nahi mila.</p>';
-                container.innerHTML = content;
+                container.innerHTML = `<p class="text-red-400">Users load nahi ho sake.</p>`;
                 return;
             }
             let tableHTML = `<div class="bg-gray-800 rounded-xl shadow-lg overflow-x-auto"><table class="w-full text-left">
                 <thead class="bg-gray-700"><tr>
-                    <th class="p-4">Name</th><th class="p-4">Email / Phone</th><th class="p-4">Wallet Balance</th><th class="p-4">Joined On</th>
+                    <th class="p-4">Naam</th><th class="p-4">Email</th><th class="p-4">Total Amount</th><th class="p-4">Bonus</th><th class="p-4">Penalty</th><th class="p-4">Joined On</th>
                 </tr></thead><tbody>`;
             
-            users.forEach(user => {
-                const totalBalance = (user.cash_balance || 0) + (user.winnings_balance || 0) + (user.bonus_balance || 0);
+            data.forEach(user => {
                 const date = new Date(user.created_at).toLocaleDateString();
-                const emailDisplay = user.email.includes('@devilwin.com') ? user.email.split('@')[0] : user.email;
-
                 tableHTML += `<tr class="border-b border-gray-700 hover:bg-gray-700/50">
-                    <td class="p-4 text-sm">${user.name}</td>
-                    <td class="p-4 text-sm">${emailDisplay}</td>
-                    <td class="p-4 font-bold text-yellow-400">₹${totalBalance.toFixed(2)}</td>
+                    <td class="p-4 text-sm">${user.display_name} ${user.is_suspended ? '<span class="ml-2 px-2 py-1 text-xs font-semibold text-white bg-red-600 rounded-full">SUSPENDED</span>' : ''}</td>
+                    <td class="p-4 text-sm">${user.email}</td>
+                    <td class="p-4 font-bold text-yellow-400">₹${(user.total_amount || 0).toFixed(2)}</td>
+                    <td class="p-4 font-bold text-blue-400">₹${(user.bonus || 0).toFixed(2)}</td>
+                    <td class="p-4 font-bold text-red-500">₹${(user.penalty || 0).toFixed(2)}</td>
                     <td class="p-4 text-sm">${date}</td>
                 </tr>`;
             });
             tableHTML += `</tbody></table></div>`;
-            container.innerHTML = content + tableHTML;
+            document.getElementById('users-content').innerHTML = tableHTML;
         }
 
-        async function loadRequests(container, type) {
-            const { data: requests, error } = await supabase
-                .from('transactions')
-                .select(`*, profiles (name, email)`)
-                .eq('status', 'pending')
-                .eq('type', type)
-                .order('created_at', { ascending: true });
+        function loadRequests(container, tableName, type) {
+            const sub = supabaseClient.from(tableName).on('*', payload => {
+                renderRequests(container, tableName, type);
+            }).subscribe();
+            subscriptions.push(sub);
+            renderRequests(container, tableName, type);
+        }
 
+        async function renderRequests(container, tableName, type) {
+            const { data, error } = await supabaseClient.from(tableName).select('*').eq('status', 'pending').order('created_at', { ascending: true });
             if (error) {
-                console.error(`Error loading ${type} requests:`, error);
-                container.innerHTML += `<p class="text-red-400">${type} requests load nahi ho sake. Console check karein.</p>`;
+                container.innerHTML = `<p class="text-red-400">${type} requests load nahi ho sake.</p>`;
                 return;
             }
-
-            let content = `<h2 class="text-3xl font-bold mb-6 text-gray-100">${type} Requests</h2>`;
-            
-            if (!requests || requests.length === 0) {
-                content += '<p class="text-gray-400">Koi pending request nahi hai.</p>';
-                container.innerHTML = content;
+             if (data.length === 0) {
+                document.getElementById(`${tableName}-content`).innerHTML = '<p class="text-gray-400">Koi pending requests nahi hai.</p>';
                 return;
             }
-            
-            let tableHeader = `<th class="p-4">User</th><th class="p-4">Amount</th><th class="p-4">Details</th><th class="p-4">Date</th><th class="p-4">Actions</th>`;
-
+            let tableHeader = (type === 'Deposit') 
+                ? `<th class="p-4">User</th><th class="p-4">Amount</th><th class="p-4">Date</th><th class="p-4">Screenshot</th><th class="p-4">Actions</th>`
+                : `<th class="p-4">User</th><th class="p-4">Amount</th><th class="p-4">UPI ID</th><th class="p-4">Date</th><th class="p-4">Actions</th>`;
             let tableHTML = `<div class="bg-gray-800 rounded-xl shadow-lg overflow-x-auto"><table class="w-full text-left">
                 <thead class="bg-gray-700"><tr>${tableHeader}</tr></thead><tbody>`;
-            
-            requests.forEach(req => {
+            data.forEach(req => {
                 const date = new Date(req.created_at).toLocaleString();
-                const userName = req.profiles?.name || req.profiles?.email || 'N/A';
+                let screenshotCell = (type === 'Deposit') 
+                    ? `<td class="p-4"><button class="action-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded" data-action="view-image" data-image-url="${req.screenshot_url}">Dekhein</button></td>`
+                    : '';
+                let detailsContent = (type === 'Withdrawal') ? `<td class="p-4 text-sm">${req.upi_id || 'N/A'}</td>` : '';
                 
-                let detailsContent = '';
-                if (type === 'Deposit') {
-                    // In a real app, proof_url would be a link to Supabase Storage
-                    detailsContent = req.proof_url ? `<a href="${req.proof_url}" target="_blank" class="text-blue-400 hover:underline">View Proof</a>` : 'No Proof';
-                } else { // Withdrawal
-                    detailsContent = `UPI: ${req.upi_id}`;
-                }
-
                 tableHTML += `<tr class="border-b border-gray-700 hover:bg-gray-700/50">
-                    <td class="p-4 text-sm">${userName}</td>
-                    <td class="p-4 font-bold text-yellow-400">₹${req.amount.toFixed(2)}</td>
-                    <td class="p-4 text-sm">${detailsContent}</td>
+                    <td class="p-4 text-sm">${req.user_name}</td>
+                    <td class="p-4 font-bold text-yellow-400">₹${(req.gross_amount || req.amount).toFixed(2)}</td>
+                    ${detailsContent}
                     <td class="p-4 text-sm">${date}</td>
+                    ${screenshotCell}
                     <td class="p-4 flex space-x-2">
-                        <button class="action-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded" data-action="approve" data-id="${req.id}" data-type="${type}">Approve</button>
-                        <button class="action-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded" data-action="reject" data-id="${req.id}" data-type="${type}">Reject</button>
+                        <button class="action-btn bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded" data-action="approve" data-id="${req.id}" data-type="${tableName}">Approve</button>
+                        <button class="action-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded" data-action="reject" data-id="${req.id}" data-type="${tableName}">Reject</button>
                     </td>
                 </tr>`;
             });
             tableHTML += `</tbody></table></div>`;
-            container.innerHTML = content + tableHTML;
+            document.getElementById(`${tableName}-content`).innerHTML = tableHTML;
+        }
+
+        function loadWalletAdjust(container) {
+            container.innerHTML = `
+                <div class="lg:col-span-1 bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h3 class="text-xl font-bold mb-6 text-gray-100">Manual Wallet Adjustment</h3>
+                    <form id="wallet-adjust-form" class="space-y-4">
+                        <div>
+                            <label for="wa-user" class="block text-sm font-medium text-gray-400 mb-1">User Email ya UID</label>
+                            <input type="text" id="wa-user" required class="w-full bg-gray-700 border-2 border-gray-600 rounded-lg p-2 focus:outline-none focus:border-yellow-400">
+                        </div>
+                        <div>
+                            <label for="wa-amount" class="block text-sm font-medium text-gray-400 mb-1">Amount (₹)</label>
+                            <input type="number" id="wa-amount" required min="0.01" step="0.01" class="w-full bg-gray-700 border-2 border-gray-600 rounded-lg p-2 focus:outline-none focus:border-yellow-400">
+                        </div>
+                        <div>
+                            <label for="wa-type" class="block text-sm font-medium text-gray-400 mb-1">Type</label>
+                            <select id="wa-type" class="w-full bg-gray-700 border-2 border-gray-600 rounded-lg p-2 focus:outline-none focus:border-yellow-400">
+                                <option value="credit">Credit (Jodna)</option>
+                                <option value="debit">Debit (Ghatana)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="wa-reason" class="block text-sm font-medium text-gray-400 mb-1">Karan / Notes</label>
+                            <textarea id="wa-reason" required rows="3" class="w-full bg-gray-700 border-2 border-gray-600 rounded-lg p-2 focus:outline-none focus:border-yellow-400"></textarea>
+                        </div>
+                        <div>
+                            <button type="submit" id="wa-submit-btn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-4 rounded-lg text-lg transition duration-300 shadow-lg">
+                                Adjustment Submit Karein
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.getElementById('wallet-adjust-form').addEventListener('submit', handleWalletAdjustment);
+        }
+
+        async function handleWalletAdjustment(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('wa-submit-btn');
+            submitBtn.disabled = true;
+
+            const userIdOrEmail = document.getElementById('wa-user').value.trim();
+            const amount = parseFloat(document.getElementById('wa-amount').value);
+            const type = document.getElementById('wa-type').value;
+            const reason = document.getElementById('wa-reason').value.trim();
+
+            try {
+                let targetUserId;
+                // Find user by email or ID
+                const { data: user, error: userError } = await supabaseClient
+                    .from('users')
+                    .select('id')
+                    .or(`email.eq.${userIdOrEmail},id.eq.${userIdOrEmail}`)
+                    .single();
+                
+                if (userError || !user) throw new Error(`User nahi mila: ${userIdOrEmail}`);
+                targetUserId = user.id;
+
+                const { error: rpcError } = await supabaseClient.rpc('adjust_wallet', {
+                    target_user_id: targetUserId,
+                    adjustment_amount: amount,
+                    adjustment_type: type,
+                    reason_text: reason
+                });
+
+                if (rpcError) throw rpcError;
+                
+                await logAdminAction('wallet-adjustment', { targetUser: targetUserId, details: { amount, type, reason } });
+                showAdminNotification("Wallet safaltapoorvak adjust ho gaya.");
+                document.getElementById('wallet-adjust-form').reset();
+
+            } catch (error) {
+                showAdminNotification(error.message, true);
+            } finally {
+                submitBtn.disabled = false;
+            }
         }
         
         async function handleAction(e) {
-            const target = e.target;
-            if (!target.classList.contains('action-btn')) return;
+            const target = e.target.closest('.action-btn');
+            if (!target) return;
             
-            const { action, id, type } = target.dataset;
-            if (!action || !id || !type) {
-                showAdminNotification("Action failed: Missing details.", true);
+            const { action, id, type, imageUrl } = target.dataset;
+            
+            if (action === 'view-image') {
+                showImageModal(imageUrl);
                 return;
             }
-            
+
             const actionBtn = target;
-            const originalText = actionBtn.innerHTML;
             actionBtn.disabled = true;
             actionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
             try {
-                let rpc_call = '';
-                if (action === 'approve') {
-                    rpc_call = type === 'Deposit' ? 'approve_deposit' : 'approve_withdrawal';
-                } else { // reject
-                    rpc_call = 'reject_transaction';
-                }
-
-                const { error } = await supabase.rpc(rpc_call, { p_transaction_id: id });
-
-                if (error) {
-                    throw error;
-                }
+                let rpcName = '';
+                if (action === 'approve') rpcName = `approve_${type.slice(0, -1)}`;
+                else if (action === 'reject') rpcName = `reject_${type.slice(0, -1)}`;
                 
-                showAdminNotification(`Action "${action}" completed successfully!`);
-                // Reload the current view to show changes
-                const currentSection = document.querySelector('.sidebar-link.active').dataset.section;
-                loadDataForView(currentSection);
+                if (!rpcName) throw new Error("Invalid action.");
+
+                const { error } = await supabaseClient.rpc(rpcName, { request_id: parseInt(id) });
+                if (error) throw error;
+                
+                await logAdminAction(rpcName, { targetUser: `Request ID: ${id}` });
+                showAdminNotification("Action safaltapoorvak poora hua!");
 
             } catch (err) {
                 console.error("Action failed:", err);
                 showAdminNotification(`Error: ${err.message}`, true);
             } finally {
                  actionBtn.disabled = false;
-                 actionBtn.innerHTML = originalText;
+                 actionBtn.innerHTML = action.charAt(0).toUpperCase() + action.slice(1);
             }
         }
 
         document.addEventListener('click', handleAction);
-
     </script>
 </body>
 </html>
